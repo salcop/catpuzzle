@@ -2,14 +2,17 @@
 (function () {
   'use strict';
   const KEY = 'nyang.save.v1';
-  const DEF = { level: 1, cleared: 0, coins: 300, b: { hint: 2, shield: 2, lift: 1 }, streak: 0, noAds: false, starter: false, lastAd: 0,
-    daily: { day: 0, last: '' }, seen: { prologue: false, chapters: [], tips: [] }, bgm: true, sfx: true, vib: true, stats: { plays: 0, fails: 0, conts: 0 }, bond: [0, 0, 0, 0, 0, 0, 0, 0] };
+  const DEF = { level: 1, cleared: 0, coins: 100, b: { hint: 2, shield: 2, lift: 1 }, streak: 0, noAds: false, starter: false, lastAd: 0,
+    daily: { day: 0, last: '' }, seen: { prologue: false, chapters: [], tips: [] }, bgm: true, sfx: true, vib: true, stats: { plays: 0, fails: 0, conts: 0 }, bond: [0, 0, 0, 0, 0, 0, 0, 0], stars: {}, ach: {}, chests: {}, tower: {}, towerSel: 0, wardrobe: [], tAdd: 0, ver: 3, totals: { cats: 0, perfect: 0, hard: 0, combo: 0, fish: 0 } };
   let D;
   try { D = Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { D = Object.assign({}, DEF); }
   D.b = Object.assign({}, DEF.b, D.b); D.seen = Object.assign({}, DEF.seen, D.seen); D.daily = Object.assign({}, DEF.daily, D.daily); D.stats = Object.assign({}, DEF.stats, D.stats); if (!Array.isArray(D.bond) || D.bond.length < 8) D.bond = DEF.bond.slice();
+  ['stars', 'ach', 'chests', 'tower'].forEach(k => D[k] = D[k] || {}); D.wardrobe = D.wardrobe || []; D.totals = Object.assign({}, DEF.totals, D.totals); D.tAdd = D.tAdd || 0;
+  if ((D.ver || 1) < 3) { // v1.3 migration: rebalance inflated economy from older versions
+    D.coins = Math.min(D.coins, 800); D.streak = Math.min(D.streak, 2); D.bond = D.bond.map(v => Math.round(v * .45)); D.ver = 3; }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } };
 
-  const NAMES = ['tap_go', 'exit', 'bump', 'grumble', 'steps', 'hint', 'lift', 'clear', 'star', 'fail', 'click', 'heart', 'purr', 'coin', 'follow', 'combo', 'nom', 'fever', 'pop', 'confetti', 'warn', 'page', 'piece', 'chapter', 'thanks', 'levelup', 'gift'];
+  const NAMES = ['tap_go', 'exit', 'bump', 'grumble', 'steps', 'hint', 'lift', 'clear', 'star', 'fail', 'click', 'heart', 'purr', 'coin', 'follow', 'combo', 'nom', 'fever', 'pop', 'confetti', 'warn', 'page', 'piece', 'chapter', 'thanks', 'levelup', 'gift', 'note', 'tok', 'tick', 'chest', 'build'];
   const AC = window.AudioContext || window.webkitAudioContext; let ac = null, master, sfxG, bgmG, BUF = {}, cur = null, curName = null, wanted = null;
   function initAudio() {
     if (ac || !AC) return; ac = new AC(); master = ac.createGain(); master.connect(ac.destination);
@@ -17,7 +20,10 @@
     const load = n => fetch('audio/' + n + '.ogg').then(r => r.arrayBuffer()).then(a => new Promise((res, rej) => ac.decodeAudioData(a, res, rej))).then(b => { BUF[n] = b; if (n === wanted) music(wanted, true); }).catch(() => { });
     NAMES.concat(['bgm', 'bgm_home']).forEach(load);
   }
-  function sfx(n, rate, vol) { if (window.__sfxlog) window.__sfxlog.push([n, rate || 1, vol == null ? 1 : vol, window.Game ? Game.S.time : 0]); if (!ac || !D.sfx || !BUF[n]) return; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = BUF[n]; s.playbackRate.value = rate || 1; g.gain.value = vol == null ? 1 : vol; s.connect(g).connect(sfxG); s.start(); }
+  const lastPlay = {}, VOICES = ['tap_go', 'exit', 'follow', 'bump', 'grumble', 'nom', 'lift', 'combo', 'thanks']; let voiceN = 0;
+  function sfx(n, rate, vol) {
+    const now = performance.now(); if (lastPlay[n] && now - lastPlay[n] < (n === 'note' ? 55 : 80)) return; lastPlay[n] = now;
+    if (VOICES.includes(n)) { if (voiceN >= 2) return; voiceN++; setTimeout(() => voiceN--, 350); } if (window.__sfxlog) window.__sfxlog.push([n, rate || 1, vol == null ? 1 : vol, window.Game ? Game.S.time : 0]); if (!ac || !D.sfx || !BUF[n]) return; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = BUF[n]; s.playbackRate.value = rate || 1; g.gain.value = vol == null ? 1 : vol; s.connect(g).connect(sfxG); s.start(); }
   function music(name, force) {
     wanted = name; if (!ac || (!force && curName === name)) return;
     if (cur) { const old = cur; old._g.gain.setTargetAtTime(0, ac.currentTime, .3); setTimeout(() => { try { old.stop(); } catch (e) { } }, 1200); cur = null; curName = null; }

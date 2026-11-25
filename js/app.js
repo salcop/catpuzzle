@@ -1,16 +1,16 @@
 /* 냥이 대탈출 - app flow / screens */
 (function () {
   'use strict';
-  const VERSION = '1.2.0';
+  const VERSION = '1.4.0';
   // TODO(출시 전): 개인정보처리방침을 GitHub Pages 등에 올리고 주소 교체
   const PRIVACY_URL = 'https://YOUR-ID.github.io/nyang-escape/privacy.html';
   const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s), S = Game.S, P = Platform, D = P.D;
-  const PRICE = { hint: 150, shield: 200, lift: 300 }, CONT_COIN = 900, BOOSTER_UNLOCK = 3;
+  const PRICE = { hint: 120, shield: 160, lift: 240, time: 200 }, CONT_COSTS = [600, 1000, 1500], BOOSTER_UNLOCK = 3; let contN = 0;
   // ---------- 냥이 호감도 (bond) ----------
-  const BOND_LV = [0, 8, 25, 50, 90, 150];
+  const BOND_LV = [0, 15, 60, 150, 300, 500];
   const OUTFIT = { 2: 'ribbon', 3: 'scarf', 4: 'flower', 5: 'crown' };
   const OUTFIT_NAME = { ribbon: '리본', scarf: '목도리', flower: '꽃화관', crown: '왕관' };
-  const LV_REWARD = { 2: ['생선 50', () => D.coins += 50], 3: ['힌트 +1', () => D.b.hint++], 4: ['방석 +1', () => D.b.shield++], 5: ['생선 200', () => D.coins += 200], 6: ['집어올리기 +2 · 생선 300', () => { D.b.lift += 2; D.coins += 300; }] };
+  const LV_REWARD = { 2: ['힌트 +1', () => D.b.hint++], 3: ['방석 +1', () => D.b.shield++], 4: ['집어올리기 +1', () => D.b.lift++], 5: ['부스터 세트', () => { D.b.hint++; D.b.shield++; D.b.lift++; }], 6: ['생선 300', () => D.coins += 300] };
   const PROFILE = [
     { n: '치즈', p: '탈출 작전 대장. 매번 잡히지만 늘 씩씩해요.', t: ['고마워! 역시 믿을 만하다냥!', '대장으로서 감사 인사한다냥!', '덕분에 오늘도 뽀송하다냥~'] },
     { n: '구름', p: '겁 많은 하얀 냥이. 물이 제일 무서워요.', t: ['흐아앙… 무서웠어… 고마워…', '구해줘서 고마워냥! 이거 받아…', '이제 하나도 안 무서워!'] },
@@ -25,6 +25,25 @@
   const levelOf = c => { let l = 1; BOND_LV.forEach((v, i) => { if (D.bond[c] >= v) l = i + 1; }); return l; };
   const outfitOf = c => { const l = levelOf(c); let o = null; for (let i = 2; i <= l; i++) if (OUTFIT[i]) o = OUTFIT[i]; return o; };
   Game.outfitOf = outfitOf;
+  // ---------- stars · titles · chests · achievements ----------
+  const totalStars = () => Object.values(D.stars).reduce((s, v) => s + v, 0);
+  const TITLES = [[0, '견습 집사'], [30, '새내기 집사'], [80, '든든한 집사'], [150, '베테랑 집사'], [250, '고양이 박사'], [400, '전설의 집사']];
+  const titleOf = s => { let t = TITLES[0][1]; TITLES.forEach(([v, n]) => { if (s >= v) t = n; }); return t; };
+  const STAR_FISH = { normal: [0, 5, 10, 20], rest: [0, 5, 8, 15], hard: [0, 10, 25, 45], super: [0, 25, 55, 100] };
+  const CHEST = [[10, '힌트 1 · 생선 30', () => { D.b.hint++; D.coins += 30; }], [20, '방석 1 · 시계 1', () => { D.b.shield++; D.tAdd++; }], [30, '부스터 세트 · 생선 100', () => { D.b.hint++; D.b.shield++; D.b.lift++; D.coins += 100; }]];
+  const chapStars = c => { let s = 0; for (let i = c * 10 + 1; i <= c * 10 + 10; i++) s += D.stars[i] || 0; return s; };
+  const ACH = [
+    ['first', '첫 탈출', '레벨 1 클리어', () => D.cleared >= 1, 20], ['l10', '욕실 졸업', '레벨 10 클리어', () => D.cleared >= 10, 50], ['l30', '탈출 전문가', '레벨 30 클리어', () => D.cleared >= 30, 100], ['l60', '탈출의 달인', '레벨 60 클리어', () => D.cleared >= 60, 200],
+    ['p1', '첫 퍼펙트', '별 3개 받기', () => D.totals.perfect >= 1, 20], ['p10', '완벽주의 냥', '별 3개 10번', () => D.totals.perfect >= 10, 80], ['p30', '퍼펙트 집사', '별 3개 30번', () => D.totals.perfect >= 30, 200],
+    ['s50', '별 모으기', '별 50개', () => totalStars() >= 50, 60], ['s150', '별이 반짝', '별 150개', () => totalStars() >= 150, 150],
+    ['c100', '구조대', '냥이 100마리 구출', () => D.totals.cats >= 100, 30], ['c500', '구조 대장', '냥이 500마리 구출', () => D.totals.cats >= 500, 100], ['c2000', '냥이의 영웅', '냥이 2000마리 구출', () => D.totals.cats >= 2000, 300],
+    ['h5', '용감한 집사', '어려운 레벨 5개 클리어', () => D.totals.hard >= 5, 60], ['h20', '강철 집사', '어려운 레벨 20개 클리어', () => D.totals.hard >= 20, 200],
+    ['k10', '냥콤보 x10', '콤보 10 달성', () => D.totals.combo >= 10, 40], ['k20', '냥콤보 x20', '콤보 20 달성', () => D.totals.combo >= 20, 100],
+    ['t1', '첫 집짓기', '캣타워 1단계', () => Tower.score(D.tower) >= 1, 20], ['t10', '건축가 냥', '캣타워 10단계', () => Tower.score(D.tower) >= 10, 150], ['tmax', '캣캐슬 완성', '캣타워 최대', () => Tower.score(D.tower) >= Tower.maxScore(), 500],
+    ['b5', '절친', '한 냥이 호감도 Lv5', () => D.bond.some((_, i) => levelOf(i) >= 5), 150],
+  ];
+  const achReady = () => ACH.filter(([id, , , ok]) => ok() && !D.ach[id]).length;
+  const perk = id => (D.tower[id] || 0);
   const CH = Story.CHAPTERS, chapOf = l => Math.floor((l - 1) / 10);
   const imgs = CH.map(c => { const i = new Image(); i.src = c.pic; return i; });
   const picOf = l => imgs[chapOf(l) % imgs.length];
@@ -50,13 +69,14 @@
     const c = $('#combo'); if (S.combo >= 2) { c.classList.remove('hidden'); $('#cn').textContent = 'x' + S.combo; if (S.combo !== lastCombo) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } } else c.classList.add('hidden'); lastCombo = S.combo;
     boosterUI();
   });
+  Game.on('timer', () => { const t = $('#timer'); if (!S.timeMax) { t.classList.add('hidden'); return; } t.classList.remove('hidden'); const s = Math.ceil(S.timeLeft); t.querySelector('b').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); t.querySelector('i').style.width = (S.timeLeft / S.timeMax * 100) + '%'; t.classList.toggle('low', S.timeLeft <= 10); });
   Game.on('gauge', () => $('#gfill').style.width = (S.gauge * 100) + '%');
   Game.on('fever', on => $('#gauge').classList.toggle('fever', on));
-  Game.on('coinPick', v => { D.coins += v === 2 ? 10 : 5; P.save(); coinsUI(); });
-  Game.on('stage', I => { $('#stTxt').textContent = '레벨 ' + S.stage; $('#stTag').textContent = TIERNAME[I.kind]; $('#stTag').className = 'tier ' + I.kind; $('#banner').className = I.kind; });
+  Game.on('coinPick', v => { D.coins += v === 2 ? 3 : 1; D.totals.fish += v === 2 ? 3 : 1; P.save(); coinsUI(); });
+  Game.on('stage', I => { setTimeout(() => S.hooks.timer && S.hooks.timer(), 0); $('#stTxt').textContent = '레벨 ' + S.stage; $('#stTag').textContent = TIERNAME[I.kind]; $('#stTag').className = 'tier ' + I.kind; $('#banner').className = I.kind; });
   function boosterUI() {
     $$('.item').forEach(b => {
-      const k = b.dataset.b, n = D.b[k], bd = b.querySelector('.badge'), locked = S.stage < BOOSTER_UNLOCK;
+      const k = b.dataset.b, n = k === 'time' ? D.tAdd : D.b[k], bd = b.querySelector('.badge'), locked = S.stage < BOOSTER_UNLOCK || (k === 'time' && !S.timeMax);
       b.classList.toggle('lock', locked);
       if (locked) { bd.className = 'badge c'; bd.textContent = 'Lv' + BOOSTER_UNLOCK; }
       else if (n > 0) { bd.className = 'badge n'; bd.textContent = n; } else { bd.className = 'badge c'; bd.innerHTML = FISH_S + PRICE[k]; }
@@ -66,7 +86,9 @@
   $$('.item').forEach(b => b.onclick = () => {
     if (S.state !== 'play') return; const k = b.dataset.b; click();
     if (S.stage < BOOSTER_UNLOCK) { toast(`부스터는 레벨 ${BOOSTER_UNLOCK}부터 쓸 수 있어요`); return; }
-    const use = () => k === 'hint' ? Game.useHint() : k === 'shield' ? Game.useShield() : Game.liftBest();
+    const use = () => k === 'hint' ? Game.useHint() : k === 'shield' ? Game.useShield() : k === 'time' ? Game.addTime(15) : Game.liftBest();
+    if (k === 'time' && !S.timeMax) { toast('타이머가 있는 레벨(8~)에서 쓸 수 있어요'); return; }
+    if (k === 'time' && D.tAdd > 0) { if (use()) { D.tAdd--; P.save(); } boosterUI(); return; }
     if (D.b[k] > 0) { if (use()) { D.b[k]--; P.save(); P.log('booster', k); } }
     else if (D.coins >= PRICE[k]) { if (use()) { D.coins -= PRICE[k]; P.save(); coinsUI(); P.log('booster_buy', k); } }
     else openShop(true);
@@ -101,12 +123,15 @@
   }
 
   // ---------- level flow ----------
+  let replay = 0;
   async function startLevel() {
-    const n = D.level, c = chapOf(n);
+    const n = replay || D.level; replay = 0; const _n = n, c = chapOf(n);
     if (!D.seen.prologue) { P.music('bgm_home'); await Story.prologue(); D.seen.prologue = true; P.save(); }
     if ((n - 1) % 10 === 0 && !D.seen.chapters.includes(c)) { P.music('bgm_home'); await Story.chapterIntro(c); D.seen.chapters.push(c); P.save(); }
     Game.loadStage(n, picOf(n)); Game.setPaused(false);
-    if (D.streak > 0 && D.streak % 3 === 0) S.shield = Math.max(S.shield, 1);
+    contN = 0; if (D.streak > 0 && D.streak % 5 === 0) S.shield = Math.max(S.shield, 1);
+    if (perk('bed') && Math.random() < perk('bed') * .1) { S.shield = Math.max(S.shield, 1); }
+    if (perk('toy')) S.gauge = Math.min(.5, perk('toy') * .1);
     showGame(); boosterUI(); coinsUI(); D.stats.plays++; P.save(); P.log('level_start', n);
     S.state = 'intro';
     await showTip(n);
@@ -145,35 +170,49 @@
   function piecesHTML(chapter, newIdx) { const done = Math.max(0, Math.min(10, D.cleared - chapter * 10)); return Array.from({ length: 10 }, (_, i) => `<i class="${i < done ? (i === newIdx ? 'got new' : 'got') : ''}">${i < done ? '' : i + 1}</i>`).join(''); }
   Game.on('clear', () => {
     $('#toast').classList.add('hidden');
-    const n = S.stage, reward = S.reward, c = chapOf(n), newIdx = (n - 1) % 10, chapterDone = n % 10 === 0;
-    D.cleared = Math.max(D.cleared, n); D.level = n + 1; D.streak++; const gift = D.streak % 3 === 0;
-    const ups = [], before = D.bond.map((_, i) => levelOf(i));
-    S.rescued.forEach((v, i) => D.bond[i] += v);
+    const n = S.stage, c = chapOf(n), newIdx = (n - 1) % 10, chapterDone = n % 10 === 0;
+    const firstClear = n > D.cleared; D.cleared = Math.max(D.cleared, n); if (firstClear) D.level = n + 1; D.streak++; const gift = D.streak % 5 === 0;
+    // ★ rating: clear / no mistakes / time margin (>=40%) or (no timer) used no booster/continue
+    const starTime = S.timeMax ? S.timeLeft / S.timeMax >= .4 : (S.mistakes === 0 && contN === 0);
+    const stars = 1 + (S.mistakes === 0 ? 1 : 0) + (starTime && contN === 0 ? 1 : 0);
+    const prev = D.stars[n] || 0, gained = Math.max(0, stars - prev); D.stars[n] = Math.max(prev, stars);
+    const reward = Math.round((firstClear ? STAR_FISH[S.kind][stars] : Math.max(0, STAR_FISH[S.kind][stars] - STAR_FISH[S.kind][prev])) + perk('base'));
+    D.totals.cats += S.total; if (stars === 3) D.totals.perfect++; if (S.kind === 'hard' || S.kind === 'super') D.totals.hard++; D.totals.combo = Math.max(D.totals.combo, S.bestCombo);
+    const ups = [], before = D.bond.map((_, i) => levelOf(i)), bondMul = (1 + perk('house') * .1) * (stars === 3 ? 1.3 : 1);
+    S.rescued.forEach((v, i) => D.bond[i] += Math.round(v * bondMul));
     D.bond.forEach((_, i) => { for (let l = before[i] + 1; l <= levelOf(i); l++) ups.push([i, l]); });
-    const rep = S.rescued.indexOf(Math.max(...S.rescued)), thankGift = Math.ceil(S.total / 5);
-    D.coins += reward + thankGift; if (gift) D.b.shield++; P.save(); coinsUI(); P.log('level_clear', n);
+    const rep = S.rescued.indexOf(Math.max(...S.rescued));
+    D.coins += reward; if (gift) D.b.shield++; P.save(); coinsUI(); P.log('level_clear', n);
+    const title0 = titleOf(totalStars() - gained), title1 = titleOf(totalStars()); pendingTitle = title0 !== title1 ? title1 : null;
     pendingUps = ups;
     const C = CH[c % CH.length], PR = PROFILE[rep], line = PR.t[Math.floor(Math.random() * PR.t.length)];
     const bondRow = S.rescued.map((v, i) => [i, v]).filter(e => e[1] > 0).sort((x, y) => y[1] - x[1]).map(([i, v]) => {
       const l = levelOf(i), lo = BOND_LV[l - 1], hi = BOND_LV[l] ?? lo, pct = hi > lo ? Math.min(100, (D.bond[i] - lo) / (hi - lo) * 100) : 100;
       return `<div class="bd"><img src="${CatArt.iconURL(i, 72, 2, 'happy', outfitOf(i))}"><b>+${v}</b><div class="bbar"><i style="width:${pct}%"></i></div><small>Lv${l}</small></div>`; }).join('');
     openModal(`<div class="thx"><img class="thxcat" src="${CatArt.iconURL(rep, 220, 2, 'happy', outfitOf(rep))}"><div class="thxbub"><b>${PR.n}</b>${line}</div></div>
-      <h2 style="margin-top:2px">탈출 성공!</h2>
+      <h2 style="margin-top:2px">${stars === 3 ? 'PERFECT!' : '탈출 성공!'}</h2>
+      <div class="stars3">${[1, 2, 3].map(i => `<span class="st ${i <= stars ? 'on' : ''}" style="animation-delay:${.25 + i * .28}s">★</span>`).join('')}</div>
+      <div class="starwhy"><span class="${'on'}">탈출</span><span class="${S.mistakes === 0 ? 'on' : ''}">실수 없이</span><span class="${starTime && contN === 0 ? 'on' : ''}">${S.timeMax ? '시간 여유' : '이어하기 없이'}</span></div>
       <div class="bondrow">${bondRow}</div>
       <div class="resrow"><div class="picframe sm"><img src="${C.pic}"><div class="pieces">${piecesHTML(c, newIdx)}</div></div>
         <div style="text-align:left"><div style="font-weight:900;font-size:12.5px;color:#A27786">'${C.picName}'<br>조각 ${newIdx + 1}/10 획득!</div>
-        <div class="reward" style="font-size:16px">${FISH} +${reward + thankGift}</div><div style="font-size:11px;color:#A27786;font-weight:900">레벨 ${reward} + 냥이들 선물 ${thankGift}${S.kind === 'hard' || S.kind === 'super' ? ' · ' + TIERNAME[S.kind] + ' 보너스' : ''}</div></div></div>
-      <div style="font-size:12.5px;font-weight:900;color:#A27786">최대 냥콤보 x${S.bestCombo} · 연승 ${D.streak}${gift ? ' · <span style="color:#FF7F95">방석 선물!</span>' : ''}</div>
-      <button class="btn yellow" id="dbl"><span class="ad">AD</span>생선 2배 (+${reward})</button><button class="btn pink" id="nxt">${chapterDone ? '그림 완성 보러가기' : '다음 레벨'}</button>`);
-    P.sfx('thanks', Game.VOICE[rep]); setTimeout(() => P.sfx('gift'), 700); setTimeout(() => P.sfx('piece'), 1100);
+        <div class="reward" style="font-size:16px">${FISH} +${reward}</div><div style="font-size:11px;color:#A27786;font-weight:900">${firstClear ? '별 ' + stars + '개 보상' : prev >= stars ? '이미 받은 별' : '새 별 보상'}${perk('base') ? ' · 캣타워 +' + perk('base') : ''}</div></div></div>
+      <div style="font-size:12.5px;font-weight:900;color:#A27786">최대 냥콤보 x${S.bestCombo} · 연승 ${D.streak}${gift ? ' · <span style="color:#FF7F95">방석 선물!</span>' : ''} · ${titleOf(totalStars())}</div>
+      ${reward > 0 ? `<button class="btn yellow" id="dbl"><span class="ad">AD</span>생선 2배 (+${reward})</button>` : `<button class="btn yellow" id="dbl" style="display:none"></button>`}<button class="btn pink" id="nxt">${chapterDone ? '그림 완성 보러가기' : '다음 레벨'}</button>`);
+    [1, 2, 3].forEach(i => { if (i <= stars) setTimeout(() => { P.sfx('star', 1 + i * .12); P.vibrate(15); }, 250 + i * 280); }); setTimeout(() => P.sfx('thanks', Game.VOICE[rep]), 1300); if (stars === 3) setTimeout(() => { P.sfx('fever'); Game.burstConfetti(50); }, 1150);
     $('#dbl').onclick = () => { click(); P.rewarded('double', ok => { if (ok) { D.coins += reward; P.save(); coinsUI(); P.sfx('coin'); $('#dbl').disabled = true; } }); };
     $('#nxt').onclick = async () => {
-      click(); closeModal(); await showLevelUps();
+      click(); closeModal(); await showLevelUps(); await showTitle();
       if (chapterDone) { await chapterComplete(c); showHome(); return; }
       P.interstitial(); startLevel();
     };
   });
-  let pendingUps = [];
+  let pendingUps = [], pendingTitle = null;
+  async function showTitle() {
+    if (!pendingTitle) return; const t = pendingTitle; pendingTitle = null;
+    await new Promise(res => { openModal(`<div style="font-size:13px;font-weight:900;color:#A27786">별 ${totalStars()}개 달성!</div><h2>새 칭호</h2><div class="titlebadge">${t}</div><img src="${CatArt.iconURL(0, 220, 2, 'happy', 'crown')}" width="130"><button class="btn pink" id="tOk">자랑스러워요!</button>`);
+      P.sfx('levelup'); Game.burstConfetti(50); $('#tOk').onclick = () => { click(); closeModal(); res(); }; });
+  }
   async function showLevelUps() {
     for (const [i, l] of pendingUps) {
       await new Promise(res => {
@@ -205,22 +244,61 @@
       <button class="btn pink" id="cdBack">목록으로</button>`);
     P.sfx('tap_go', Game.VOICE[i]); $('#cdBack').onclick = () => { click(); openCats(); };
   }
+  // ---------- 캣타워 ----------
+  let towerRAF = 0;
+  function openTower() {
+    const P2 = Tower.PARTS;
+    openModal(`<h2>우리 캣타워</h2><div style="font-size:13px;font-weight:900;color:#A27786">${Tower.rank(D.tower)} · ${Tower.score(D.tower)}/${Tower.maxScore()}단계</div>
+      <canvas id="tw" class="towercv" width="300" height="260"></canvas>
+      <div class="parts">${P2.map(p => { const lv = D.tower[p.id] || 0, max = lv >= p.max, cost = p.cost[lv];
+        return `<div class="part"><div class="pn">${p.name} <span>${'●'.repeat(lv)}<u>${'●'.repeat(p.max - lv)}</u></span></div><div class="pd">${p.perk}</div>
+        <button class="pb ${max ? 'max' : D.coins >= cost ? '' : 'poor'}" data-p="${p.id}">${max ? '완성' : FISH_S + cost.toLocaleString()}</button></div>`; }).join('')}</div>
+      <button class="btn ghost" id="twClose">닫기</button>`);
+    const cv = $('#tw'), dp = Math.min(devicePixelRatio || 1, 3); cv.width = 300 * dp; cv.height = 260 * dp; const x = cv.getContext('2d'); x.scale(dp, dp);
+    cancelAnimationFrame(towerRAF); const loop = n => { if (!$('#tw')) return; x.clearRect(0, 0, 300, 260); Tower.draw(x, 300, 260, D.tower, n / 1000, [0, 3, 4, 6, 1, 7].map(l => ({ l, acc: outfitOf(l) }))); towerRAF = requestAnimationFrame(loop); }; towerRAF = requestAnimationFrame(loop);
+    $$('[data-p]').forEach(b => b.onclick = () => {
+      const p = P2.find(q => q.id === b.dataset.p), lv = D.tower[p.id] || 0; if (lv >= p.max) return;
+      if (p.id !== 'base' && !D.tower.base) { toast('받침대부터 지어주세요!'); return; }
+      const cost = p.cost[lv]; if (D.coins < cost) { toast('생선이 부족해요. 별 3개로 더 모아봐요!'); P.sfx('heart'); return; }
+      D.coins -= cost; D.tower[p.id] = lv + 1; P.save(); coinsUI(); P.sfx('build'); P.vibrate(30);
+      toast(`${p.name} ${lv + 1}단계 완성!`); openTower();
+    });
+    $('#twClose').onclick = () => { click(); cancelAnimationFrame(towerRAF); closeModal(); homeUI(); };
+  }
+  function openAch() {
+    openModal(`<h2>업적</h2><div style="font-size:13px;font-weight:900;color:#A27786">${ACH.filter(a => D.ach[a[0]]).length} / ${ACH.length} 달성 · ${titleOf(totalStars())}</div>
+      <div class="achlist">${ACH.map(([id, n, d, ok, r]) => { const done = D.ach[id], ready = !done && ok();
+        return `<div class="ach ${done ? 'done' : ready ? 'ready' : ''}"><div class="am">${done ? '<svg viewBox="0 0 32 32" width="24" height="24"><path d="M10 3h4l3 9h-4zM22 3h-4l-3 9h4z" fill="#9FC9F0"/><circle cx="16" cy="20" r="9" fill="#FFD457" stroke="#E0A812" stroke-width="2"/><path d="M16 15l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z" fill="#fff"/></svg>' : ready ? '<svg viewBox="0 0 32 32" width="24" height="24"><rect x="6" y="14" width="20" height="13" rx="3" fill="#FF9CB5"/><rect x="4" y="10" width="24" height="6" rx="2" fill="#FFB6C9"/><rect x="14" y="10" width="4" height="17" fill="#FFE38A"/><path d="M16 10c-5-6-9-1-4 0M16 10c5-6 9-1 4 0" stroke="#FFE38A" stroke-width="2.4" fill="none"/></svg>' : '<svg viewBox="0 0 32 32" width="22" height="22"><rect x="8" y="14" width="16" height="13" rx="3" fill="#E6D2D8"/><path d="M11 14v-3a5 5 0 0 1 10 0v3" stroke="#D3BCC4" stroke-width="2.6" fill="none"/></svg>'}</div><div><b>${n}</b><small>${d}</small></div><button data-a="${id}" class="ab">${done ? '완료' : ready ? FISH_S + r : FISH_S + r}</button></div>`; }).join('')}</div>
+      <div style="font-size:11.5px;color:#A27786;font-weight:900;margin-top:8px">칭호: ${TITLES.map(t => t[1] + ' ★' + t[0]).join(' · ')}</div>
+      <button class="btn ghost" id="achClose">닫기</button>`);
+    $$('[data-a]').forEach(b => b.onclick = () => { const A2 = ACH.find(q => q[0] === b.dataset.a); if (D.ach[A2[0]] || !A2[3]()) return; D.ach[A2[0]] = 1; D.coins += A2[4]; P.save(); coinsUI(); P.sfx('chest'); Game.burstConfetti(30); toast(`${A2[1]} 달성! 생선 +${A2[4]}`); openAch(); });
+    $('#achClose').onclick = () => { click(); closeModal(); homeUI(); };
+  }
+  function openChest() {
+    const c = chapOf(D.level), cs = chapStars(c);
+    openModal(`<h2>별 보물상자</h2><div style="font-size:13px;font-weight:900;color:#A27786">챕터 ${c + 1} 별 ${cs} / 30 · 지난 레벨을 다시 해서 별을 모아요</div>
+      <div class="chests">${CHEST.map(([need, txt], i) => { const k = c + '_' + i, got = D.chests[k], ready = !got && cs >= need;
+        return `<div class="chestbox ${got ? 'got' : ready ? 'ready' : ''}" data-ch="${i}"><div class="cb">${got ? '<svg viewBox="0 0 32 32" width="28" height="28"><rect x="6" y="15" width="20" height="12" rx="3" fill="#B9E6C9"/><path d="M4 12l24-5 1 5-24 5z" fill="#9FD6B6"/><circle cx="10" cy="6" r="1.6" fill="#FFD457"/><circle cx="22" cy="4" r="1.4" fill="#FF9CB5"/><circle cx="26" cy="10" r="1.2" fill="#FFD457"/></svg>' : '<svg viewBox="0 0 32 32" width="28" height="28"><rect x="6" y="14" width="20" height="13" rx="3" fill="#FF9CB5"/><rect x="4" y="10" width="24" height="6" rx="2" fill="#FFB6C9"/><rect x="14" y="10" width="4" height="17" fill="#FFE38A"/><path d="M16 10c-5-6-9-1-4 0M16 10c5-6 9-1 4 0" stroke="#FFE38A" stroke-width="2.4" fill="none"/></svg>'}</div><b>★${need}</b><small>${txt}</small></div>`; }).join('')}</div>
+      <button class="btn ghost" id="chClose">닫기</button>`);
+    $$('[data-ch]').forEach(e => e.onclick = () => { const i = +e.dataset.ch, k = c + '_' + i; if (D.chests[k] || cs < CHEST[i][0]) return; D.chests[k] = 1; CHEST[i][2](); P.save(); coinsUI(); P.sfx('chest'); Game.burstConfetti(50); toast('보물상자 열림! ' + CHEST[i][1]); openChest(); });
+    $('#chClose').onclick = () => { click(); closeModal(); homeUI(); };
+  }
   async function chapterComplete(c) {
     const C = CH[c % CH.length];
     await new Promise(res => {
-      openModal(`<div style="font-size:13px;font-weight:900;color:#A27786">챕터 ${c + 1} 완료</div><h2>그림 완성!</h2><div class="picframe" style="width:220px"><img src="${C.pic}"></div><div style="font-weight:900;font-size:17px">'${C.picName}'</div><div class="reward">${FISH} +200 · 힌트 +1 · 방석 +1</div><button class="btn pink" id="cc">이야기 보기</button>`);
-      D.coins += 200; D.b.hint++; D.b.shield++; P.save(); coinsUI(); P.sfx('chapter'); Game.burstConfetti(60);
+      openModal(`<div style="font-size:13px;font-weight:900;color:#A27786">챕터 ${c + 1} 완료</div><h2>그림 완성!</h2><div class="picframe" style="width:220px"><img src="${C.pic}"></div><div style="font-weight:900;font-size:17px">'${C.picName}'</div><div class="reward">${FISH} +100 · 힌트 +1 · 방석 +1</div><button class="btn pink" id="cc">이야기 보기</button>`);
+      D.coins += 100; D.b.hint++; D.b.shield++; P.save(); coinsUI(); P.sfx('chapter'); Game.burstConfetti(60);
       $('#cc').onclick = () => { click(); closeModal(); res(); };
     });
     P.music('bgm_home'); await Story.chapterOutro(c);
   }
-  Game.on('fail', () => {
-    D.stats.fails++; P.save(); P.log('level_fail', S.stage);
-    openModal(`<h2 style="color:#9C8AB8">꽉 막혔다냥…</h2><img src="${CatArt.iconURL(4, 200, 2, 'bump', 'bubble')}" width="130"><div style="font-weight:900;margin:2px 0 6px">냥이 <span style="color:#FF7F95">${S.total - S.out}마리</span>만 더 나가면 돼요!</div>
-      <div style="font-size:12px;color:#A27786;font-weight:900">하트 +3 · 방석 1개 보너스로 이어하기</div>
+  Game.on('fail', (why) => {
+    D.stats.fails++; P.save(); P.log('level_fail', S.stage); const CONT_COIN = CONT_COSTS[Math.min(contN, 2)];
+    openModal(`<h2 style="color:#9C8AB8">${why === 'time' ? '집사가 왔다냥!' : '꽉 막혔다냥…'}</h2><img src="${CatArt.iconURL(4, 200, 2, 'bump', 'bubble')}" width="130"><div style="font-weight:900;margin:2px 0 6px">냥이 <span style="color:#FF7F95">${S.total - S.out}마리</span>만 더 나가면 돼요!</div>
+      <div style="font-size:12px;color:#A27786;font-weight:900">${why === 'time' ? '시간 +15초로 이어하기' : '하트 +3으로 이어하기'} · 이어하면 별 1개 감소</div>
       <button class="btn mint" id="cAd"><span class="ad">AD</span>광고 보고 이어하기</button><button class="btn yellow" id="cCoin">${FISH} ${CONT_COIN}으로 이어하기</button><button class="btn ghost" id="giveup">포기하기 (연승 초기화)</button>`);
-    $('#cAd').onclick = () => { click(); P.rewarded('continue', ok => { if (ok) { closeModal(); D.stats.conts++; P.save(); Game.continueGame(); } }); };
-    $('#cCoin').onclick = () => { click(); if (D.coins < CONT_COIN) { openShop(true); return; } D.coins -= CONT_COIN; P.save(); coinsUI(); closeModal(); Game.continueGame(); };
+    $('#cAd').onclick = () => { click(); P.rewarded('continue', ok => { if (ok) { closeModal(); D.stats.conts++; contN++; P.save(); Game.continueGame(why); } }); };
+    $('#cCoin').onclick = () => { click(); if (D.coins < CONT_COIN) { openShop(true); return; } D.coins -= CONT_COIN; contN++; P.save(); coinsUI(); closeModal(); Game.continueGame(why); };
     $('#giveup').onclick = () => { click(); D.streak = 0; P.save(); showHome(); };
   });
 
@@ -254,8 +332,8 @@
   }
 
   // ---------- daily (7-day cycle) ----------
-  const DAYS = [{ t: '생선 50', g: () => D.coins += 50 }, { t: '힌트 1', g: () => D.b.hint++ }, { t: '생선 80', g: () => D.coins += 80 }, { t: '방석 1', g: () => D.b.shield++ },
-    { t: '생선 120', g: () => D.coins += 120 }, { t: '집기 1', g: () => D.b.lift++ }, { t: '생선 300 + 부스터 세트', g: () => { D.coins += 300; D.b.hint++; D.b.shield++; D.b.lift++; } }];
+  const DAYS = [{ t: '생선 20', g: () => D.coins += 20 }, { t: '힌트 1', g: () => D.b.hint++ }, { t: '생선 30', g: () => D.coins += 30 }, { t: '방석 1', g: () => D.b.shield++ },
+    { t: '시계 1', g: () => D.tAdd++ }, { t: '집기 1', g: () => D.b.lift++ }, { t: '생선 100 + 부스터 세트', g: () => { D.coins += 100; D.b.hint++; D.b.shield++; D.b.lift++; } }];
   const today = () => new Date().toISOString().slice(0, 10);
   const dailyReady = () => D.daily.last !== today();
   function openDaily() {
@@ -300,7 +378,7 @@
 
   // ---------- home ----------
   const hc = $('#homeCat'), hdp = Math.min(devicePixelRatio || 1, 3); hc.width = 260 * hdp; hc.height = 190 * hdp; const hx = hc.getContext('2d'); hx.scale(hdp, hdp);
-  function drawHome(t) {
+  function drawHome(t) { if (Tower.score(D.tower) > 0) { hx.clearRect(0, 0, 260, 190); hx.save(); hx.scale(260 / 300, 190 / 260); Tower.draw(hx, 300, 260, D.tower, t, [0, 3, 4, 6, 1, 7].map(l => ({ l, acc: outfitOf(l) }))); hx.restore(); return; }
     hx.clearRect(0, 0, 260, 190);
     for (let i = 0; i < 6; i++) { const ph = (t * .25 + i / 6) % 1; hx.globalAlpha = Math.sin(ph * Math.PI); hx.fillStyle = '#fff'; hx.strokeStyle = '#CDEFF8'; hx.lineWidth = 2; hx.beginPath(); hx.arc(30 + i * 40 + Math.sin(t + i) * 8, 110 - ph * 100, 5 + i % 3 * 4, 0, 7); hx.fill(); hx.stroke(); } hx.globalAlpha = 1;
     hx.fillStyle = '#BDEBF6'; hx.beginPath(); hx.ellipse(130, 118, 108, 20, 0, 0, 7); hx.fill();
@@ -317,15 +395,18 @@
     $('#btnPlay').innerHTML = `레벨 ${l}<small>${k === 'hard' ? '어려운 레벨 · 보상 ' + Game.TIER_REWARD.hard : k === 'super' ? '매우 어려운 레벨 · 보상 ' + Game.TIER_REWARD.super : l === 1 ? '탈출 작전 시작!' : '탭해서 시작'}</small>`;
     $('#homePic').src = C.pic; $('#chapTxt').textContent = `챕터 ${c + 1} · ${C.name}`; $('#picName').textContent = C.picName;
     const done = Math.max(0, Math.min(10, D.cleared - c * 10)); $('#pbar').style.width = done * 10 + '%'; $('#pieceTxt').textContent = `그림 조각 ${done} / 10`; $('#homePieces').innerHTML = piecesHTML(c, -1);
-    $('#road').innerHTML = Array.from({ length: 7 }, (_, i) => { const n = l - 2 + i; if (n < 1) return ''; const t = Game.tierOf(n); return `<span class="${n === l ? 'cur' : n < l ? 'done' : t === 'hard' ? 'h' : t === 'super' ? 's' : ''}">${n < l ? '✓' : n}</span>`; }).join('');
-    $('#streak').textContent = `연승 ${D.streak} · 3연승마다 방석 선물`;
+    $('#road').innerHTML = Array.from({ length: 7 }, (_, i) => { const n = l - 3 + i; if (n < 1) return ''; const t = Game.tierOf(n), st = D.stars[n] || 0; return `<span data-lv="${n}" class="${n === l ? 'cur' : n < l ? 'done' : t === 'hard' ? 'h' : t === 'super' ? 's' : ''}">${n}${n < l ? `<em>${'★'.repeat(st)}<u>${'★'.repeat(3 - st)}</u></em>` : ''}</span>`; }).join('');
+    $$('#road [data-lv]').forEach(e => e.onclick = () => { const n = +e.dataset.lv; if (n >= D.level) return; click(); replay = n; startLevel(); });
+    $('#streak').innerHTML = `<b>${titleOf(totalStars())}</b> · ★ ${totalStars()} · 연승 ${D.streak}`;
+    const cs = chapStars(c); $('#chest').innerHTML = CHEST.map(([need], i) => `<span class="${D.chests[c + '_' + i] ? 'got' : cs >= need ? 'ready' : ''}">${need}</span>`).join('') + `<i style="width:${Math.min(100, cs / 30 * 100)}%"></i>`; $('#chestTxt').textContent = `챕터 별 ${cs}/30`;
+    $('#achDot').classList.toggle('hidden', !achReady()); $('#towerDot').classList.toggle('hidden', !Tower.PARTS.some(p => (D.tower[p.id] || 0) < p.max && D.coins >= p.cost[D.tower[p.id] || 0]));
     $('#dailyDot').classList.toggle('hidden', !dailyReady()); $('#btnNoAds').classList.toggle('hidden', D.noAds);
   }
   $('#btnPlay').onclick = () => { click(); P.unlock(); startLevel(); };
   $('#btnPause').onclick = () => { click(); openPause(); };
   $('#btnShop').onclick = () => { click(); openShop(); }; $('#btnNoAds').onclick = () => { click(); openShop(); };
   $('#btnAlbum').onclick = () => { click(); openAlbum(); }; $('#albumCard').onclick = () => { click(); openAlbum(); };
-  $('#btnDaily').onclick = () => { click(); openDaily(); }; $('#btnCats').onclick = () => { click(); openCats(); }; $('#btnSet').onclick = () => { click(); openSettings(); };
+  $('#btnDaily').onclick = () => { click(); openDaily(); }; $('#btnTower').onclick = () => { click(); openTower(); }; $('#btnAch').onclick = () => { click(); openAch(); }; $('#chestBar').onclick = () => { click(); openChest(); }; $('#btnCats').onclick = () => { click(); openCats(); }; $('#btnSet').onclick = () => { click(); openSettings(); };
 
   // ---------- Android lifecycle ----------
   let lastBack = 0;
@@ -340,5 +421,5 @@
   document.addEventListener('visibilitychange', () => document.hidden ? window.onAppPause() : window.onAppResume());
 
   Game.setPaused(true); homeUI(); P.music('bgm_home');
-  window.App = { openCats, catDetail, levelOf, refresh: homeUI, startLevel, showHome, openShop, openAlbum, openDaily, openSettings, chapterComplete, toast };
+  window.App = { openTower, openAch, openChest, totalStars, openCats, catDetail, levelOf, refresh: homeUI, startLevel, showHome, openShop, openAlbum, openDaily, openSettings, chapterComplete, toast };
 })();
