@@ -1,8 +1,8 @@
 /* 냥이 대탈출 v2.0 - 보상 사용처 & 진행 시스템
    1) 냥이 옷가게 : 생선으로 옷 구매 → 냥이별로 입히기 (게임판·홈·결과에 반영)
    2) 욕실 테마   : 생선으로 타일·배경 테마 구매/적용
-   3) 간식 주기   : 생선 → 간식 → 원하는 냥이 호감도 직접 올리기
-   4) 행운 캡슐   : 생선으로 뽑기 (옷 조각·부스터·생선), 중복은 '냥 코인'으로 교환
+   3) 간식 주기   : 생선으로 바로 간식 주기 → 원하는 냥이 호감도 올리기 (보관 없음)
+   4) 행운 캡슐   : 생선으로 뽑기 (옷·부스터·생선), 중복 옷은 생선으로 환급   ※ v2.1: 재화는 '생선' 하나
    5) 일일 미션   : 매일 3개, 모두 완료 시 보너스 상자
    6) 연출       : 생선이 카운터로 날아가는 애니메이션, 숫자 롤업, 화면 전환 발바닥 와이프 */
 (function () {
@@ -104,10 +104,10 @@
     open(`<h2>오늘의 미션</h2><div class="sub2">매일 새로 바뀌어요 · 3개 모두 완료하면 보너스 상자!</div>
       <div class="mlist">${D.mission.list.map((m, i) => `<div class="mi ${m.done ? 'done' : m.ready ? 'ready' : ''}"><div class="mt"><b>${m.txt}</b><div class="mbar"><i style="width:${m.got / m.need * 100}%"></i></div><small>${m.got} / ${m.need}</small></div>
         <button class="mb" data-m="${i}">${m.done ? '완료' : m.ready ? '받기 ' + FS + m.reward : FS + m.reward}</button></div>`).join('')}</div>
-      <div class="mbonus ${all && !D.mission.bonus ? 'ready' : D.mission.bonus ? 'done' : ''}" id="mBonus"><span class="cap big"></span><div><b>보너스 상자</b><small>행운 캡슐 1회 + 생선 80</small></div><button class="mb">${D.mission.bonus ? '완료' : all ? '열기' : '잠김'}</button></div>
+      <div class="mbonus ${all && !D.mission.bonus ? 'ready' : D.mission.bonus ? 'done' : ''}" id="mBonus"><span class="cap big"></span><div><b>보너스 상자</b><small>생선 100 + 힌트 1</small></div><button class="mb">${D.mission.bonus ? '완료' : all ? '열기' : '잠김'}</button></div>
       <button class="btn ghost" id="mClose">닫기</button>`);
     $$('[data-m]').forEach(b => b.onclick = () => { const m = D.mission.list[+b.dataset.m]; if (!m.ready || m.done) return; m.done = true; D.coins += m.reward; P.save(); P.sfx('coin_big'); window.Cute && Cute.celebrate(b); setTimeout(openMissions, 650); dot(); });
-    $('#mBonus').onclick = () => { if (!all || D.mission.bonus) return; D.mission.bonus = true; D.coins += 80; D.capsule.freeTickets = (D.capsule.freeTickets || 0) + 1; P.save(); P.sfx('chest'); window.Cute && Cute.celebrate($('#mBonus')); setTimeout(openMissions, 700); dot(); };
+    $('#mBonus').onclick = () => { if (!all || D.mission.bonus) return; D.mission.bonus = true; D.coins += 100; D.b.hint++; P.save(); P.sfx('chest'); window.Cute && Cute.celebrate($('#mBonus')); setTimeout(openMissions, 700); dot(); };
     $('#mClose').onclick = () => { click(); close(); };
   }
 
@@ -115,12 +115,14 @@
   let tab = 'acc', selCat = 0;
   function openStore(t) {
     tab = t || tab;
-    const tabs = [['acc', '옷가게'], ['theme', '욕실 테마'], ['snack', '간식'], ['cap', '행운 캡슐']];
+    const tabs = [['acc', '옷가게'], ['snack', '간식']].concat(Flow.on('theme') ? [['theme', '테마']] : []).concat(Flow.on('capsule') ? [['cap', '캡슐']] : []).concat([['fish', '생선']]);
+    if (!tabs.some(q => q[0] === tab)) tab = 'acc';
     let body = '';
+    if (tab === 'fish') { close(); App.openShop(); return; }
     if (tab === 'acc') {
       body = `<div class="catpick">${CATN.map((n, i) => `<button class="cp ${i === selCat ? 'on' : ''}" data-cat="${i}"><img src="${CatArt.iconURL(i, 72, 2, 'idle', Game.outfitOf(i))}"><small>${n}</small></button>`).join('')}</div>
         <div class="preview"><img id="pv" src="${CatArt.iconURL(selCat, 220, 2, 'happy', Game.outfitOf(selCat))}"><div class="pvname">${CATN[selCat]} · ${D.wear[selCat] && D.owned[D.wear[selCat]] ? ACC.find(a => a.id === D.wear[selCat]).n + ' 착용 중' : '호감도 옷 착용 중'}</div></div>
-        <div class="accgrid">${ACC.map(a => { const own = D.owned[a.id], on = D.wear[selCat] === a.id;
+        <div class="accgrid">${ACC.filter(a => !a.ev || D.owned[a.id]).map(a => { const own = D.owned[a.id], on = D.wear[selCat] === a.id;
           return `<div class="ai r${a.r} ${on ? 'on' : ''}" data-acc="${a.id}"><img src="${CatArt.iconURL(selCat, 80, 2, 'idle', a.id)}"><b>${a.n}</b><button class="ab2 ${own ? (on ? 'wear' : 'have') : D.coins >= a.price ? '' : 'poor'}">${own ? (on ? '벗기' : '입히기') : FS + a.price.toLocaleString()}</button></div>`; }).join('')}</div>
         <div class="hint2">한 번 사면 모든 냥이에게 입힐 수 있어요</div>`;
     } else if (tab === 'theme') {
@@ -129,14 +131,12 @@
     } else if (tab === 'snack') {
       body = `<div class="catpick">${CATN.map((n, i) => `<button class="cp ${i === selCat ? 'on' : ''}" data-cat="${i}"><img src="${CatArt.iconURL(i, 72, 2, 'idle', Game.outfitOf(i))}"><small>${n} Lv${App.levelOf(i)}</small></button>`).join('')}</div>
         <div class="preview"><img id="pv" src="${CatArt.iconURL(selCat, 220, 2, 'happy', Game.outfitOf(selCat))}"><div class="pvname">${CATN[selCat]} 호감도 ${D.bond[selCat]}</div></div>
-        <div class="snackrow">${SNACK.map(s => `<div class="sn" data-sn="${s.id}"><span class="snico" style="--c:${s.col}"></span><b>${s.n}</b><small>호감도 +${s.bond}</small><small>보유 ${D.snacks[s.id]}</small><button class="ab2 ${D.snacks[s.id] ? 'have' : D.coins >= s.price ? '' : 'poor'}">${D.snacks[s.id] ? '주기' : FS + s.price}</button></div>`).join('')}</div>
+        <div class="snackrow">${SNACK.map(s => `<div class="sn" data-sn="${s.id}"><span class="snico" style="--c:${s.col}"></span><b>${s.n}</b><small>호감도 +${s.bond}</small><button class="ab2 ${D.coins >= s.price ? '' : 'poor'}">${FS + s.price} 주기</button></div>`).join('')}</div>
         <div class="hint2">좋아하는 냥이를 골라 간식을 주면 바로 친해져요</div>`;
     } else {
-      const free = (D.capsule.freeTickets || 0) > 0;
       body = `<div class="capmachine"><canvas id="capcv" width="220" height="220"></canvas></div>
-        <div class="capinfo">옷 · 부스터 · 생선이 나와요 · 10번 안에 옷 1개 보장 (${D.capsule.pity}/10)</div>
-        <div class="row2"><button class="btn yellow" id="capOne">${free ? '무료 1회 (' + D.capsule.freeTickets + '장)' : FS + CAP_PRICE + ' 1회'}</button><button class="btn pink" id="capAd"><span class="ad">AD</span>무료 1회</button></div>
-        <div class="tokens">냥 코인 ${D.capsule.tokens} · ${CAP_TOKENS_FOR_PICK}개면 원하는 옷 교환 <button class="ab2 ${D.capsule.tokens >= CAP_TOKENS_FOR_PICK ? 'have' : 'poor'}" id="capEx">교환</button></div>`;
+        <div class="capinfo">옷 · 부스터 · 호감도 · 생선이 나와요 · 옷 보장까지 ${10 - D.capsule.pity}회<br>이미 가진 옷이 나오면 생선으로 돌려받아요</div>
+        <div class="row2"><button class="btn yellow" id="capOne">${FS + CAP_PRICE} 1회</button><button class="btn pink" id="capAd"><span class="ad">AD</span>무료 1회</button></div>`;
     }
     open(`<h2>냥이 가게</h2><div class="coins inline"><span class="fishico">${FISH}</span><span class="coinTxt">${D.coins.toLocaleString()}</span></div>
       <div class="tabs">${tabs.map(([k, n]) => `<button class="tb ${k === tab ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('')}</div><div class="tabbody">${body}</div>
@@ -156,8 +156,8 @@
     });
     $$('[data-sn]').forEach(el => el.querySelector('button').onclick = () => {
       const s = SNACK.find(q => q.id === el.dataset.sn);
-      if (!D.snacks[s.id]) { if (D.coins < s.price) { toast('생선이 부족해요'); P.sfx('heart'); return; } D.coins -= s.price; D.snacks[s.id]++; P.sfx('buy'); P.save(); openStore(); return; }
-      const before = App.levelOf(selCat); D.snacks[s.id]--; D.bond[selCat] += s.bond; P.save(); track('snack', 1);
+      if (D.coins < s.price) { toast('생선이 부족해요'); P.sfx('heart'); return; }
+      const before = App.levelOf(selCat); D.coins -= s.price; D.bond[selCat] += s.bond; P.save(); track('snack', 1);
       P.sfx('nom'); setTimeout(() => P.sfx('meow_pet', Game.VOICE[selCat]), 500); window.Cute && Cute.celebrate($('#pv'));
       const pv = $('#pv'); pv.classList.remove('munch'); void pv.offsetWidth; pv.classList.add('munch');
       if (App.levelOf(selCat) > before) setTimeout(() => toast(`${CATN[selCat]} 호감도 Lv${App.levelOf(selCat)}!`, 2200), 600);
@@ -172,12 +172,11 @@
     const notOwned = ACC.filter(a => !D.owned[a.id]);
     const r = Math.random();
     if (D.capsule.pity >= 10 || r < .12) { D.capsule.pity = 0;
-      const pool = ACC.flatMap(a => Array(a.r === 3 ? 1 : a.r === 2 ? 3 : 6).fill(a)); const a = pool[Math.floor(Math.random() * pool.length)];
-      if (D.owned[a.id]) { D.capsule.tokens += a.r * 2; return { t: `${a.n} (중복) → 냥 코인 +${a.r * 2}`, c: '#C9A8F0', acc: a.id }; }
+      const pool = ACC.filter(a => !a.ev).flatMap(a => Array(a.r === 3 ? 1 : a.r === 2 ? 3 : 6).fill(a)); const a = pool[Math.floor(Math.random() * pool.length)];
+      if (D.owned[a.id]) { const back = Math.round(a.price * .4); D.coins += back; return { t: `${a.n} (이미 있음) → 생선 +${back}`, c: '#C9A8F0', acc: a.id }; }
       D.owned[a.id] = true; return { t: `옷 · ${a.n}!`, c: a.r === 3 ? '#FFD457' : '#FF9CB5', acc: a.id, rare: a.r }; }
     if (r < .42) { const b = ['hint', 'shield', 'lift'][Math.floor(Math.random() * 3)]; D.b[b]++; return { t: { hint: '힌트', shield: '방석', lift: '집어올리기' }[b] + ' +1', c: '#9FE0C8' }; }
-    if (r < .62) { const s = SNACK[Math.floor(Math.random() * 2)]; D.snacks[s.id]++; return { t: s.n + ' +1', c: '#F6C27A' }; }
-    if (r < .7) { D.tAdd++; return { t: '시간 +15초 +1', c: '#8FC4F0' }; }
+    if (r < .62) { const c = Math.floor(Math.random() * 8); D.bond[c] += 12; return { t: CATN[c] + ' 호감도 +12', c: '#F6C27A' }; }
     const f = [80, 120, 200, 500][Math.random() < .05 ? 3 : Math.floor(Math.random() * 3)]; D.coins += f; return { t: '생선 +' + f, c: '#8FD0EA' };
   }
   let capAnim = 0;
@@ -216,29 +215,11 @@
         $('#capAgain').onclick = () => { click(); openStore('cap'); }; $('#capBack').onclick = () => { click(); openStore('cap'); };
       }, 1500);
     };
-    $('#capOne').onclick = () => spin(() => { if ((D.capsule.freeTickets || 0) > 0) { D.capsule.freeTickets--; return true; } if (D.coins < CAP_PRICE) { toast('생선이 부족해요'); P.sfx('heart'); return false; } D.coins -= CAP_PRICE; return true; });
+    $('#capOne').onclick = () => spin(() => { if (D.coins < CAP_PRICE) { toast('생선이 부족해요'); P.sfx('heart'); return false; } D.coins -= CAP_PRICE; return true; });
     $('#capAd').onclick = () => { if (D.capsule.free === today()) { toast('광고 무료 뽑기는 하루 1번이에요'); return; } P.rewarded('capsule', ok => { if (ok) { D.capsule.free = today(); spin(() => true); } }); };
-    $('#capEx').onclick = () => { if (D.capsule.tokens < CAP_TOKENS_FOR_PICK) { toast(`냥 코인 ${CAP_TOKENS_FOR_PICK}개가 필요해요`); return; }
-      const na = ACC.filter(a => !D.owned[a.id]); if (!na.length) { toast('모든 옷을 가지고 있어요!'); return; }
-      open(`<h2>원하는 옷 고르기</h2><div class="accgrid">${na.map(a => `<div class="ai" data-pick="${a.id}"><img src="${CatArt.iconURL(selCat, 80, 2, 'idle', a.id)}"><b>${a.n}</b></div>`).join('')}</div><button class="btn ghost" id="pkBack">돌아가기</button>`);
-      $$('[data-pick]').forEach(e => e.onclick = () => { D.capsule.tokens -= CAP_TOKENS_FOR_PICK; D.owned[e.dataset.pick] = true; P.save(); P.sfx('perfect'); toast('교환 완료!'); openStore('acc'); });
-      $('#pkBack').onclick = () => openStore('cap'); };
   }
 
-  // ---------- home buttons ----------
-  function dot() { const d = $('#missionDot'); if (d) d.classList.toggle('hidden', !missionReady()); }
-  const bar = $('.topbtns');
-  if (bar) {
-    const m = document.createElement('button'); m.className = 'mochi round sm'; m.id = 'btnMission'; m.setAttribute('aria-label', '미션');
-    m.innerHTML = '<svg viewBox="0 0 32 32"><rect x="7" y="5" width="18" height="23" rx="4" fill="#fff" stroke="#E3728F" stroke-width="2"/><rect x="12" y="3" width="8" height="5" rx="2" fill="#FFB6C9"/><path d="M11 14l2 2 4-4M11 21l2 2 4-4" stroke="#7FD4B3" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 15h3M19 22h3" stroke="#E3A0B4" stroke-width="2" stroke-linecap="round"/></svg><i class="dot hidden" id="missionDot"></i>';
-    bar.appendChild(m); m.onclick = () => { click(); openMissions(); };
-  }
-  const shopBtn = $('#btnShop');
-  if (shopBtn) {
-    const b = document.createElement('button'); b.className = 'mochi hb'; b.id = 'btnStore';
-    b.innerHTML = '<svg viewBox="0 0 32 32"><path d="M5 12l2-6h18l2 6z" fill="#FF9CB5"/><path d="M5 12c0 2 2 3 3.7 3S12 14 12 12c0 2 2 3 4 3s4-1 4-3c0 2 1.6 3 3.3 3S27 14 27 12" fill="#FFD6E2" stroke="#E3728F" stroke-width="1.6"/><rect x="7" y="15" width="18" height="12" rx="2" fill="#fff" stroke="#E3728F" stroke-width="1.6"/><rect x="13" y="19" width="6" height="8" rx="1.5" fill="#FFE38A"/></svg>가게';
-    shopBtn.parentNode.insertBefore(b, shopBtn.nextSibling); b.onclick = () => { click(); openStore('acc'); };
-  }
+  function dot() { window.Flow && Flow.refresh(); }
 
   // ---------- game event tracking for missions ----------
   const evClear = Game.S.hooks.clear;
@@ -247,5 +228,5 @@
   const evSfx = Game.S.hooks.sfx; Game.on('sfx', (n, ...r) => { if (n === 'note') track('chain', (S.chain || 0) + 1, true); evSfx && evSfx(n, ...r); });
   const hc = $('#homeCat'); if (hc) hc.addEventListener('pointerdown', () => track('pet', 1));
   rollMissions(); dot();
-  window.Meta = { openStore, openMissions, track, THEMES, ACC, flyFish };
+  window.Meta = { openStore, openMissions, track, THEMES, ACC, flyFish, missionReady, rollMissions };
 })();

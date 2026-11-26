@@ -4,7 +4,7 @@
   'use strict';
   const CAST = {
     치즈: { lvl: 0, pitch: 1.0, acc: null }, 구름: { lvl: 1, pitch: 1.25, acc: 'bubble' }, 삼색이: { lvl: 3, pitch: 1.12, acc: null },
-    까망: { lvl: 7, pitch: .86, acc: null }, 턱시도: { lvl: 4, pitch: .95, acc: 'duck' }, 샴: { lvl: 6, pitch: 1.05, acc: 'towel' }, 집사: { human: true },
+    까망: { lvl: 7, pitch: .86, acc: null }, 턱시도: { lvl: 4, pitch: .95, acc: 'duck' }, 샴: { lvl: 6, pitch: 1.05, acc: 'towel' }, 하늘: { lvl: 5, pitch: 1.0, acc: null }, 집사: { human: true },
   };
   const PROLOGUE = { bg: 'art/story.jpg', title: '프롤로그 · 목욕은 싫다냥!', lines: [
     ['집사', '얘들아~ 오늘은 목욕하는 날이야! 다들 욕실로 모여~♪'],
@@ -32,8 +32,15 @@
       intro: [['치즈', '택배가 왔다냥! 상자가 잔뜩!', 'happy'], ['까망', '상자는… 들어가야 하는 법이지.', 'idle']],
       outro: [['치즈', '완성! 이름하여 냥냥 성이다냥!', 'happy'], ['삼색이', '창문마다 고양이가 하나씩~', 'happy'], ['집사', '(멀리서) 얘들아, 그 상자 버려야 하는데…'], ['모두', '안 돼!!!', 'bump']] },
     { name: '지붕 위 불꽃놀이', pic: 'art/pic6.jpg', picName: '보름달 불꽃놀이',
-      intro: [['샴', '오늘 밤 마을에 불꽃놀이가 있대.', 'idle'], ['치즈', '지붕 위가 명당이다냥! 마지막 대탈출이다냥!', 'happy']],
+      intro: [['샴', '오늘 밤 마을에 불꽃놀이가 있대.', 'idle'], ['치즈', '지붕 위가 명당이다냥! 오늘도 대탈출이다냥!', 'happy']],
       outro: [['구름', '와아… 하늘에 꽃이 핀다냥…', 'happy'], ['치즈', '탈출만 하다 보니… 이렇게 다 같이 모였다냥.', 'blink'], ['까망', '…내일 목욕날에도 같이 도망치는 거다.', 'happy'], ['치즈', '물론이다냥! 냥이 대탈출은 계속된다냥!', 'happy']] },
+    // ---- v2.1 content update (월간 챕터 예시: 아래 형식 그대로 추가하면 됨 · docs/04_콘텐츠_업데이트_가이드.md) ----
+    { name: '눈 오는 크리스마스', pic: 'art/pic7.jpg', picName: '냥냥 트리 꾸미기', season: 'winter',
+      intro: [['구름', '밖에 하얀 게 떨어진다냥! 차가워…', 'bump'], ['치즈', '크리스마스다냥! 집사 몰래 트리를 꾸미자!', 'happy']],
+      outro: [['삼색이', '리본은 내 거다냥~ 데굴데굴~', 'happy'], ['치즈', '산타 모자 어울리냥?', 'happy'], ['집사', '어머, 트리가… 리본투성이네? 그래도 예쁘다~'], ['모두', '메리 냥스마스!', 'happy']] },
+    { name: '벚꽃 소풍', pic: 'art/pic8.jpg', picName: '벚꽃 아래 붕어빵 소풍', season: 'spring',
+      intro: [['샴', '공원에 벚꽃이 피었대. 소풍 갈까?', 'idle'], ['턱시도', '붕어빵 도시락은 이 몸이 챙겼다!', 'happy']],
+      outro: [['까망', '…꽃잎이 코에 붙었다.', 'blink'], ['하늘', '오리들도 같이 먹고 싶대.', 'happy'], ['치즈', '목욕은 싫지만… 봄바람은 좋다냥~', 'happy']] },
   ];
   let el, resolve, idx = 0, script = null, full = '', shown = 0, timer = null;
   function ensure() {

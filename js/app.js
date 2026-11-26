@@ -1,7 +1,7 @@
 /* 냥이 대탈출 - app flow / screens */
 (function () {
   'use strict';
-  const VERSION = '2.0.0';
+  const VERSION = '2.1.0';
   // TODO(출시 전): 개인정보처리방침을 GitHub Pages 등에 올리고 주소 교체
   const PRIVACY_URL = 'https://YOUR-ID.github.io/nyang-escape/privacy.html';
   const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s), S = Game.S, P = Platform, D = P.D;
@@ -30,7 +30,7 @@
   const TITLES = [[0, '견습 집사'], [30, '새내기 집사'], [80, '든든한 집사'], [150, '베테랑 집사'], [250, '고양이 박사'], [400, '전설의 집사']];
   const titleOf = s => { let t = TITLES[0][1]; TITLES.forEach(([v, n]) => { if (s >= v) t = n; }); return t; };
   const STAR_FISH = { normal: [0, 5, 10, 20], rest: [0, 5, 8, 15], hard: [0, 10, 25, 45], super: [0, 25, 55, 100] };
-  const CHEST = [[10, '힌트 1 · 생선 30', () => { D.b.hint++; D.coins += 30; }], [20, '방석 1 · 시계 1', () => { D.b.shield++; D.tAdd++; }], [30, '부스터 세트 · 생선 100', () => { D.b.hint++; D.b.shield++; D.b.lift++; D.coins += 100; }]];
+  const CHEST = [[10, '힌트 1 · 생선 30', () => { D.b.hint++; D.coins += 30; }], [20, '방석 1 · 집기 1', () => { D.b.shield++; D.b.lift++; }], [30, '부스터 세트 · 생선 100', () => { D.b.hint++; D.b.shield++; D.b.lift++; D.coins += 100; }]];
   const chapStars = c => { let s = 0; for (let i = c * 10 + 1; i <= c * 10 + 10; i++) s += D.stars[i] || 0; return s; };
   const ACH = [
     ['first', '첫 탈출', '레벨 1 클리어', () => D.cleared >= 1, 20], ['l10', '욕실 졸업', '레벨 10 클리어', () => D.cleared >= 10, 50], ['l30', '탈출 전문가', '레벨 30 클리어', () => D.cleared >= 30, 100], ['l60', '탈출의 달인', '레벨 60 클리어', () => D.cleared >= 60, 200],
@@ -102,13 +102,15 @@
 
   // ---------- new-mechanic tips ----------
   const TIPS = {
-    3: { t: '츄르 & 생선', d: '빈 칸의 츄르·생선 위로 냥이가 지나가면 냠냠! 생선을 모으고 츄르 게이지가 차요. 부스터도 이제 쓸 수 있어요!', churu: true },
-    5: { t: '츄르 타임!', d: '연속으로 탈출시키면 냥콤보! 츄르 게이지가 가득 차면 6초 동안 부딪혀도 하트가 안 줄어요.', cat: [0, 'happy'] },
-    8: { t: '움직이지 않는 친구들', d: '고무오리와 대야는 비켜주지 않아요. 그 방향을 보는 냥이는 다른 길이 없다면 집어올리기!', obs: true },
-    10: { t: '어려운 레벨 등장', d: '보라색 레벨은 보상이 2배 이상! 막히면 방석·힌트를 아끼지 마세요.', cat: [7, 'bump'] },
-    15: { t: '졸린 냥이', d: 'zZz… 자고 있는 냥이는 첫 탭에 깨어나기만 해요. 한 번 더 탭하면 출발!', cat: [5, 'sleep'] },
-    20: { t: '매우 어려운 레벨!', d: '20레벨마다 커다란 판이 등장해요. 보상은 생선 100!', cat: [4, 'bump', 'crown'] },
+    3: { t: '츄르 & 생선', d: '빈 칸의 츄르·생선 위로 냥이가 지나가면 냠냠! 생선이 모여요. 막히면 아래 부스터를 써 보세요.', churu: true },
+    5: { t: '츄르 타임!', d: '연속으로 탈출시키면 냥콤보! 츄르 게이지가 가득 차면 잠깐 동안 부딪혀도 하트가 안 줄어요.', cat: [0, 'happy'] },
+    10: { t: '어려운 레벨', d: '보라색 레벨은 판이 조금 더 복잡해요. 대신 보상이 2배 이상! 천천히 생각해도 괜찮아요.', cat: [7, 'bump'] },
+    11: { t: '움직이지 않는 친구들', d: '고무오리와 대야는 비켜주지 않아요. 그 방향을 보는 냥이는 다른 길이 없다면 집어올리기!', obs: true },
+    15: { t: '번호표 냥이', d: '번호가 붙은 냥이는 1번, 2번… 순서대로만 나갈 수 있어요. 번호가 반짝이는 냥이가 다음 차례!', num: true },
+    18: { t: '졸린 냥이', d: 'zZz… 자고 있는 냥이는 첫 탭에 깨어나기만 해요. 한 번 더 탭하면 출발!', cat: [5, 'sleep'] },
+    20: { t: '매우 어려운 레벨!', d: '20레벨마다 커다란 판이 나와요. 보상은 생선 100!', cat: [4, 'bump', 'crown'] },
   };
+
   function showTip(n) {
     const T = TIPS[n]; if (!T || D.seen.tips.includes(n)) return Promise.resolve();
     D.seen.tips.push(n); P.save();
@@ -117,6 +119,7 @@
       const x = $('.tipart').getContext('2d'); x.scale(2, 2);
       if (T.churu) { x.save(); x.translate(60, 54); x.rotate(-.5); x.fillStyle = '#FF9CB5'; x.strokeStyle = '#E3728F'; x.lineWidth = 3; x.beginPath(); x.roundRect(-10, -26, 20, 48, 7); x.fill(); x.stroke(); x.fillStyle = '#fff'; x.fillRect(-10, -6, 20, 9); x.restore(); }
       else if (T.obs) { x.save(); x.translate(40, 56); x.fillStyle = '#FFE066'; x.strokeStyle = '#E5B530'; x.lineWidth = 2.4; x.beginPath(); x.ellipse(-2, 8, 22, 15, 0, 0, 7); x.fill(); x.stroke(); x.beginPath(); x.arc(9, -10, 13, 0, 7); x.fill(); x.stroke(); x.fillStyle = '#FF9F43'; x.beginPath(); x.ellipse(22, -8, 8, 4, 0, 0, 7); x.fill(); x.restore(); x.save(); x.translate(92, 64); CatArt.drawCat(x, 3, 60, 3, { mood: 'bump' }); x.restore(); }
+      else if (T.num) { [[34, 1], [86, 2]].forEach(([px, k]) => { x.save(); x.translate(px, 64); CatArt.drawCat(x, k === 1 ? 0 : 3, 56, 2, { mood: 'idle', t: 1 }); x.fillStyle = '#9B7BE0'; x.beginPath(); x.arc(14, -26, 9, 0, 7); x.fill(); x.fillStyle = '#fff'; x.font = '900 12px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(k, 14, -25); x.restore(); }); }
       else { x.save(); x.translate(60, 62); CatArt.drawCat(x, T.cat[0], 70, 2, { mood: T.cat[1], acc: T.cat[2], t: 1 }); x.restore(); }
       P.sfx('pop'); $('#tipOk').onclick = () => { click(); closeModal(); res(); };
     });
@@ -125,6 +128,8 @@
   // ---------- level flow ----------
   let replay = 0;
   async function startLevel() {
+    if (S.challenge && S.state !== 'idle' && window.Flow) { S.state = 'idle'; return Flow.restartChallenge(); }
+    S.challenge = false; if (window.Flow) await Flow.announce();
     const n = replay || D.level; replay = 0; const _n = n, c = chapOf(n);
     if (!D.seen.prologue) { P.music('bgm_home'); await Story.prologue(); D.seen.prologue = true; P.save(); }
     if ((n - 1) % 10 === 0 && !D.seen.chapters.includes(c)) { P.music('bgm_home'); await Story.chapterIntro(c); D.seen.chapters.push(c); P.save(); }
@@ -173,8 +178,8 @@
     const n = S.stage, c = chapOf(n), newIdx = (n - 1) % 10, chapterDone = n % 10 === 0;
     const firstClear = n > D.cleared; D.cleared = Math.max(D.cleared, n); if (firstClear) D.level = n + 1; D.streak++; const gift = D.streak % 5 === 0;
     // ★ rating: clear / no mistakes / time margin (>=40%) or (no timer) used no booster/continue
-    const starTime = S.timeMax ? S.timeLeft / S.timeMax >= .4 : (S.mistakes === 0 && contN === 0);
-    const stars = 1 + (S.mistakes === 0 ? 1 : 0) + (starTime && contN === 0 ? 1 : 0); window.App && (App.lastStars = stars);
+    const starTime = !S.usedBooster && contN === 0; // 3rd star: no booster / no continue (no timer anymore)
+    const stars = 1 + (S.mistakes === 0 ? 1 : 0) + (starTime ? 1 : 0); window.App && (App.lastStars = stars);
     const prev = D.stars[n] || 0, gained = Math.max(0, stars - prev); D.stars[n] = Math.max(prev, stars);
     const reward = Math.round((firstClear ? STAR_FISH[S.kind][stars] : Math.max(0, STAR_FISH[S.kind][stars] - STAR_FISH[S.kind][prev])) + perk('base'));
     D.totals.cats += S.total; if (stars === 3) D.totals.perfect++; if (S.kind === 'hard' || S.kind === 'super') D.totals.hard++; D.totals.combo = Math.max(D.totals.combo, S.bestCombo);
@@ -192,7 +197,7 @@
     openModal(`<div class="thx"><img class="thxcat" src="${CatArt.iconURL(rep, 220, 2, 'happy', outfitOf(rep))}"><div class="thxbub"><b>${PR.n}</b>${line}</div></div>
       <h2 style="margin-top:2px">${stars === 3 ? 'PERFECT!' : '탈출 성공!'}</h2>
       <div class="stars3">${[1, 2, 3].map(i => `<span class="st ${i <= stars ? 'on' : ''}" style="animation-delay:${.25 + i * .28}s">★</span>`).join('')}</div>
-      <div class="starwhy"><span class="${'on'}">탈출</span><span class="${S.mistakes === 0 ? 'on' : ''}">실수 없이</span><span class="${starTime && contN === 0 ? 'on' : ''}">${S.timeMax ? '시간 여유' : '이어하기 없이'}</span></div>
+      <div class="starwhy"><span class="${'on'}">탈출</span><span class="${S.mistakes === 0 ? 'on' : ''}">실수 없이</span><span class="${starTime ? 'on' : ''}">도움 없이</span></div>
       <div class="bondrow">${bondRow}</div>
       <div class="resrow"><div class="picframe sm"><img src="${C.pic}"><div class="pieces">${piecesHTML(c, newIdx)}</div></div>
         <div style="text-align:left"><div style="font-weight:900;font-size:12.5px;color:#A27786">'${C.picName}'<br>조각 ${newIdx + 1}/10 획득!</div>
@@ -333,7 +338,7 @@
 
   // ---------- daily (7-day cycle) ----------
   const DAYS = [{ t: '생선 20', g: () => D.coins += 20 }, { t: '힌트 1', g: () => D.b.hint++ }, { t: '생선 30', g: () => D.coins += 30 }, { t: '방석 1', g: () => D.b.shield++ },
-    { t: '시계 1', g: () => D.tAdd++ }, { t: '집기 1', g: () => D.b.lift++ }, { t: '생선 100 + 부스터 세트', g: () => { D.coins += 100; D.b.hint++; D.b.shield++; D.b.lift++; } }];
+    { t: '방석 1', g: () => D.b.shield++ }, { t: '집기 1', g: () => D.b.lift++ }, { t: '생선 100 + 부스터 세트', g: () => { D.coins += 100; D.b.hint++; D.b.shield++; D.b.lift++; } }];
   const today = () => new Date().toISOString().slice(0, 10);
   const dailyReady = () => D.daily.last !== today();
   function openDaily() {
@@ -352,10 +357,12 @@
       <div class="setrow"><span>배경음악</span><button class="tog ${D.bgm ? 'on' : ''}" id="tBgm"></button></div>
       <div class="setrow"><span>효과음</span><button class="tog ${D.sfx ? 'on' : ''}" id="tSfx"></button></div>
       <div class="setrow"><span>진동</span><button class="tog ${D.vib ? 'on' : ''}" id="tVib"></button></div>
+      <div class="setrow"><span>차분 모드<small class="setsub">말풍선·흔들림·반짝이 줄이기</small></span><button class="tog ${D.calm ? 'on' : ''}" id="tCalm"></button></div>
       <div class="links">${P.privacyRequired() ? '<button id="lPriv">개인정보 설정</button>' : ''}<button id="lRestore">구매 복원</button><button id="lPolicy">개인정보처리방침</button><button id="lStory">프롤로그 다시 보기</button></div>
       <button class="btn ghost" id="setClose">닫기</button><div class="ver">v${VERSION}</div>`);
     $('#tBgm').onclick = e => { P.setBgm(!D.bgm); e.target.classList.toggle('on', D.bgm); };
     $('#tSfx').onclick = e => { D.sfx = !D.sfx; P.save(); e.target.classList.toggle('on', D.sfx); click(); };
+    $('#tCalm').onclick = e => { D.calm = !D.calm; Game.calm = D.calm; document.body.classList.toggle('calm', D.calm); P.save(); e.target.classList.toggle('on', D.calm); click(); };
     $('#tVib').onclick = e => { D.vib = !D.vib; P.save(); e.target.classList.toggle('on', D.vib); P.vibrate(30); };
     const lp = $('#lPriv'); if (lp) lp.onclick = () => P.privacyOptions();
     $('#lRestore').onclick = () => { P.restore(); toast('구매 내역을 확인하고 있어요'); };
@@ -421,5 +428,6 @@
   document.addEventListener('visibilitychange', () => document.hidden ? window.onAppPause() : window.onAppResume());
 
   Game.setPaused(true); homeUI(); P.music('bgm_home');
-  window.App = { openTower, openAch, openChest, totalStars, openCats, catDetail, levelOf, refresh: homeUI, startLevel, showHome, openShop, openAlbum, openDaily, openSettings, chapterComplete, toast };
+  Game.calm = !!D.calm; document.body.classList.toggle('calm', !!D.calm);
+  window.App = { achReady, showGame, picOf, chapOf, STAR_FISH, openTower, openAch, openChest, totalStars, openCats, catDetail, levelOf, refresh: homeUI, startLevel, showHome, openShop, openAlbum, openDaily, openSettings, chapterComplete, toast };
 })();

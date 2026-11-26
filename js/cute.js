@@ -17,6 +17,7 @@
   };
   const pick = a => a[Math.floor(Math.random() * a.length)];
   function sprinkle(x, y, n, kinds, spread) {
+    if (D && D.calm) n = Math.min(n, 1);
     for (let i = 0; i < n; i++) {
       const e = document.createElement('i'), k = pick(kinds), s = 12 + Math.random() * 12, a = Math.random() * Math.PI * 2, d = (spread || 36) * (.5 + Math.random() * .7);
       e.className = 'cfx'; e.innerHTML = SVG[k](pick(COLORS));

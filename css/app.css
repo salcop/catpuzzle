@@ -184,7 +184,7 @@ canvas#game{position:fixed;inset:0}.hidden{display:none!important}button{font-fa
 #home .ambient{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
 #home .ambient i{position:absolute;bottom:-40px;display:block;animation:floatup linear infinite}
 #home .ambient svg{width:100%;height:100%}
-#home>*:not(.ambient):not(.homebar):not(.topbtns):not(.homebub){position:relative;z-index:1}
+#home>*:not(.ambient):not(.homebar):not(.topbtns):not(.homebub):not(.evpill){position:relative;z-index:1}
 #home>.top,#home>.homebar{z-index:2}
 @keyframes floatup{0%{transform:translate(0,0)}25%{transform:translate(12px,-28vh)}50%{transform:translate(-10px,-56vh)}75%{transform:translate(10px,-84vh)}100%{transform:translate(0,-112vh)}}
 .logo{cursor:pointer;transform-origin:50% 90%}.logo.boing{animation:boing .7s cubic-bezier(.2,1.6,.4,1)}
@@ -267,3 +267,29 @@ canvas#game{position:fixed;inset:0}.hidden{display:none!important}button{font-fa
 @keyframes shine{0%,70%{left:-60%}100%{left:130%}}
 .btn.ghost::after{display:none}
 .homebar{left:6px;right:6px;justify-content:center}.homebar .hb{width:52px!important;height:58px}.homebar .hb svg{width:24px;height:24px}
+/* v2.1 calm mode */
+body.calm #home .ambient,body.calm .btn::after{display:none}
+body.calm .lvlbtn{animation:none}
+.setsub{display:block;font-size:11px;color:#A27786;font-weight:700}
+/* ===== v2.1 flow: unlocks · challenge · event ===== */
+.unlockico{margin:6px auto 2px;width:110px;height:110px;display:grid;place-items:center;background:radial-gradient(#fff,#FFE6EE);border-radius:50%;box-shadow:0 4px 0 #F4C6D2;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+.unlockico svg{width:64px;height:64px}
+.evpill{position:absolute;top:calc(env(safe-area-inset-top) + 64px);right:12px;display:flex;align-items:center;gap:4px;padding:4px 10px 4px 4px;border-radius:18px;max-width:150px;z-index:2;text-align:left}
+.evpill img{width:34px;height:34px;flex:none}.evpill b{display:block;font-size:10.5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:98px}
+.evbar{display:block;height:6px;border-radius:4px;background:#FFE6EE;overflow:hidden;margin-top:3px;width:96px}.evbar i{display:block;height:100%;background:linear-gradient(90deg,#FFD457,#FF9CB5)}
+.evpill .dot{position:absolute;top:-2px;right:-2px}
+.twist{display:flex;align-items:center;gap:10px;background:#fff;border-radius:20px;padding:6px 12px 6px 4px;box-shadow:0 3px 0 #F4C6D2;text-align:left;margin:4px 0 8px}
+.twist img{width:86px;height:86px;flex:none}.twist b{display:block;font-size:18px;color:#9B7BE0}.twist small{font-size:12.5px;font-weight:900;color:#A27786}
+.stamps{display:flex;gap:6px;justify-content:center;margin:6px 0 4px}
+.stamps i{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:900;color:#C9B8C2;background:#fff;border:2px dashed #F4C6D2}
+.stamps i.on{border:none;background:radial-gradient(circle at 50% 62%,#fff 0 22%,transparent 23%),radial-gradient(circle at 26% 34%,#fff 0 9%,transparent 10%),radial-gradient(circle at 42% 22%,#fff 0 9%,transparent 10%),radial-gradient(circle at 58% 22%,#fff 0 9%,transparent 10%),radial-gradient(circle at 74% 34%,#fff 0 9%,transparent 10%),#FF9CB5;box-shadow:0 2px 0 #E3728F}
+.stamps i.new{animation:stamp .6s .3s both cubic-bezier(.2,1.8,.4,1)}
+@keyframes stamp{0%{transform:scale(2.2) rotate(-20deg);opacity:0}100%{transform:scale(1)}}
+.evhero img{width:150px;height:150px;animation:hop 1.4s ease-in-out infinite}
+.mbar.big{height:12px;margin:6px 12px 2px}
+.evgoals{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.evg{background:#fff;border-radius:16px;padding:8px 4px;box-shadow:0 3px 0 #F4C6D2;display:flex;flex-direction:column;gap:3px;align-items:center}
+.evg b{font-size:14px}.evg small{font-size:10.5px;color:#A27786;font-weight:900;min-height:26px}.evg.ready{outline:2.5px solid #FFD457}.evg.done{opacity:.55}.evg.ready .mb{background:#FF9CB5}
+#btnChal{position:relative;margin-top:8px}
+.evpill{flex-direction:column;gap:1px;padding:3px 4px 4px;border-radius:16px;width:50px;max-width:none;align-items:center}
+.evpill img{width:36px;height:36px}.evpill .evbar{width:38px;height:5px;margin:0}.evpill small{font-size:9px;font-weight:900;color:#E3728F}

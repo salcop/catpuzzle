@@ -20,14 +20,21 @@
   // ================= DIFFICULTY =================
   function tierOf(n) { if (n >= 20 && n % 20 === 0) return 'super'; if (n >= 10 && n % 5 === 0) return 'hard'; if (n > 10 && n % 5 === 1) return 'rest'; return 'normal'; }
   const TIER_REWARD = { normal: 20, rest: 15, hard: 45, super: 100 };
+  // board grows slowly with level (casual: bigger board = more to think about, never time pressure)
+  const SIZE_STEPS = [[1, 4, 5], [3, 5, 6], [7, 5, 7], [13, 6, 7], [20, 6, 8], [30, 7, 8], [45, 7, 9], [65, 7, 10], [90, 8, 10]];
+  function sizeOf(n, kind) {
+    let s = SIZE_STEPS[0]; for (const q of SIZE_STEPS) if (n >= q[0]) s = q;
+    let [, c, r] = s; if (kind === 'super' && n >= 20) r = Math.min(11, r + 1); if (kind === 'rest') r = Math.max(5, r - 1);
+    return [c, r];
+  }
   function stageParams(n) {
-    let d = Math.min(1, Math.log(1 + n / 3) / Math.log(1 + 40 / 3)); const kind = tierOf(n);
-    if (kind === 'super') d = Math.min(1, d + .32); else if (kind === 'hard') d = Math.min(1, d + .18); else if (kind === 'rest') d = Math.max(0, d - .15);
-    const size = n <= 2 ? [4, 5] : n <= 5 ? [5, 6] : d < .4 ? [5, 7] : kind === 'super' ? [7, 9] : [6, 8];
-    return { d, kind, cols: size[0], rows: size[1], density: n === 1 ? .45 : .5 + .42 * d, depth: n === 1 ? 2 : 2 + Math.round(d * 12), inward: .3 + .7 * d,
-      obstacles: n < 8 ? 0 : Math.round(d * 5), sleepy: n < 12 ? 0 : Math.round(d * 4), pickups: n < 3 ? 1 : 1 + (n % 2),
-      order: n < 6 ? 0 : Math.min(9, 2 + Math.round(d * 7) + (kind === 'hard' ? 1 : kind === 'super' ? 2 : 0)),
-      time: n < 8 ? 0 : 0, maxFree: n <= 3 ? 99 : Math.max(2, Math.round(7 - d * 5)) };
+    let d = Math.min(1, Math.log(1 + n / 4) / Math.log(1 + 60 / 4)); const kind = tierOf(n);
+    if (kind === 'super') d = Math.min(1, d + .25); else if (kind === 'hard') d = Math.min(1, d + .14); else if (kind === 'rest') d = Math.max(0, d - .15);
+    const size = sizeOf(n, kind);
+    return { d, kind, cols: size[0], rows: size[1], density: n === 1 ? .45 : .55 + .35 * d, depth: n === 1 ? 2 : 2 + Math.round(d * 10), inward: .3 + .65 * d,
+      obstacles: n < 11 ? 0 : Math.round(d * 4), sleepy: n < 18 ? 0 : Math.round(d * 3), pickups: n < 3 ? 1 : 1 + (n % 2),
+      order: n < 15 ? 0 : Math.min(5, 1 + Math.round(d * 4) + (kind === 'super' ? 1 : 0)),
+      maxFree: n <= 3 ? 99 : Math.max(3, Math.round(8 - d * 5)), traps: n < 6 ? 0 : Math.round(1 + d * 6), longBias: n <= 2 ? 0 : .3 + .55 * d, chainBias: .55 - .35 * d };
   }
   function pathHit(grid, obs, cols, rows, c, r, d) {
     let x = c + DX[d], y = r + DY[d];
@@ -36,13 +43,25 @@
   }
   function measure(cats, cols, rows, obs) {
     const grid = Array.from({ length: rows }, () => Array(cols).fill(null)); cats.forEach(k => grid[k.r][k.c] = k.id);
-    let left = cats.length, depth = 0, firstFree = 0;
+    let left = cats.length, depth = 0, firstFree = 0; const layerSizes = [];
+    // traps: blocked at start, but the blocker is far away (>=3 cells) -> looks free, tempting mistake
+    let traps = 0;
+    for (const k of cats) { const h = pathHit(grid, obs, cols, rows, k.c, k.r, k.dir); if (h && Math.abs(h.x - k.c) + Math.abs(h.y - k.r) >= 2) traps++; }
+    // chains: cat directly behind another facing the same way (줄줄이 fun)
+    let chains = 0; for (const k of cats) { const bc = k.c - DX[k.dir], br = k.r - DY[k.dir]; if (bc >= 0 && br >= 0 && bc < cols && br < rows && grid[br][bc] != null && cats[grid[br][bc]].dir === k.dir) chains++; }
+    const dirs = [0, 0, 0, 0]; cats.forEach(k => dirs[k.dir]++); const dirMax = Math.max(...dirs) / Math.max(1, cats.length);
     while (left > 0) {
       const free = cats.filter(k => grid[k.r][k.c] === k.id && !pathHit(grid, obs, cols, rows, k.c, k.r, k.dir));
-      if (!free.length) return { depth: 99, firstFree }; if (depth === 0) firstFree = free.length;
-      free.forEach(k => grid[k.r][k.c] = null); left -= free.length; depth++;
+      if (!free.length) return { depth: 99, firstFree, traps, chains, dirMax, layerSizes }; if (depth === 0) firstFree = free.length;
+      layerSizes.push(free.length); free.forEach(k => grid[k.r][k.c] = null); left -= free.length; depth++;
     }
-    return { depth, firstFree };
+    return { depth, firstFree, traps, chains, dirMax, layerSizes };
+  }
+  function quality(P, g, m) { // lower = better
+    const n = g.cats.length, target = P.cols * P.rows * P.density;
+    const bigFirst = m.layerSizes.length ? m.layerSizes[0] / Math.max(1, n) : 1;
+    return Math.abs(m.depth - P.depth) * 3 + Math.abs(n - target) * .2 + (m.firstFree < 2 ? 6 : 0) + Math.max(0, m.firstFree - P.maxFree) * 3
+      + Math.abs(m.traps - P.traps) * 1.5 + (m.chains < 2 ? 3 : 0) + Math.max(0, m.chains / Math.max(1, n) - .28) * 18 + Math.max(0, m.dirMax - .4) * 20 + Math.max(0, bigFirst - .35) * 15;
   }
   // Reverse construction: every cat placed has a clear exit at placement time => always solvable.
   function buildOnce(P, s) {
@@ -57,16 +76,23 @@
       if (cats.length >= target) break;
       const dirs = [0, 1, 2, 3].sort(() => srand() - .5);
       const chainD = dirs.filter(d => { const bc = c - DX[d], br = r - DY[d]; return bc >= 0 && br >= 0 && bc < cols && br < rows && grid[br][bc] != null && cats[grid[br][bc]].dir === d; });
-      if (chainD.length && srand() < .55) dirs.unshift(chainD[0]);
-      for (const d of dirs) if (!pathHit(grid, obs, cols, rows, c, r, d)) { const id = cats.length; grid[r][c] = id; cats.push({ id, c, r, dir: d, lvl: Math.floor(srand() * CatArt.CATS.length) }); break; }
+      if (chainD.length && srand() < P.chainBias) dirs.unshift(chainD[0]);
+      // prefer the longest clear runway: long exits get blocked by cats placed later -> fewer free cats at start,
+      // deeper ordering and more 'looks free but isn't' traps (blocker far away)
+      const ok = dirs.filter(d => !pathHit(grid, obs, cols, rows, c, r, d));
+      if (!ok.length) continue;
+      const runway = d => d === 0 ? r : d === 2 ? rows - 1 - r : d === 1 ? cols - 1 - c : c;
+      let d = ok[0];
+      if (!(chainD.includes(d) && srand() < .5) && srand() < P.longBias) d = ok.slice().sort((p, q) => runway(q) - runway(p))[0];
+      const id = cats.length; grid[r][c] = id; cats.push({ id, c, r, dir: d, lvl: Math.floor(srand() * CatArt.CATS.length) });
     }
     return { obs, cats };
   }
-  function generate(n) {
-    const P = stageParams(n); let best = null;
-    for (let a = 0; a < 70; a++) {
-      const g = buildOnce(P, n * 7919 + a * 104729 + 17), m = measure(g.cats, P.cols, P.rows, g.obs);
-      const score = Math.abs(m.depth - P.depth) * 3 + Math.abs(g.cats.length - P.cols * P.rows * P.density) * .2 + (m.firstFree < 2 ? 5 : 0) + Math.max(0, m.firstFree - P.maxFree) * 4;
+  function generate(n, sn) {
+    sn = sn || n; const P = stageParams(n); let best = null;
+    for (let a = 0, A = n > 20 ? 90 : 60; a < A; a++) {
+      const g = buildOnce(P, sn * 7919 + a * 104729 + 17), m = measure(g.cats, P.cols, P.rows, g.obs);
+      const score = quality(P, g, m);
       if (!best || score < best.score) best = { ...g, m, score };
     }
     // numbered cats: choose from successive removal layers -> order 1..k is always achievable
@@ -74,7 +100,7 @@
       const layers = []; const grid = Array.from({ length: P.rows }, () => Array(P.cols).fill(null)); best.cats.forEach(k => grid[k.r][k.c] = k.id);
       let left = best.cats.slice();
       while (left.length) { const free = left.filter(k => !pathHit(grid, best.obs, P.cols, P.rows, k.c, k.r, k.dir)); if (!free.length) break; layers.push(free); free.forEach(k => grid[k.r][k.c] = null); left = left.filter(k => !free.includes(k)); }
-      seed = n * 53 + 1; let num = 1; const picks = [];
+      seed = sn * 53 + 1; let num = 1; const picks = [];
       // spread numbers across layers (deeper numbers need earlier ones out first)
       for (let L = 0; L < layers.length && num <= P.order; L += Math.max(1, Math.floor(layers.length / P.order))) {
         const cand = layers[L].filter(k => !picks.includes(k)); if (!cand.length) continue;
@@ -82,32 +108,34 @@
       }
       best.orderCount = num - 1;
     }
-    seed = n * 31 + 5; const pool = best.cats.filter(k => !k.num).sort(() => srand() - .5);
+    seed = sn * 31 + 5; const pool = best.cats.filter(k => !k.num).sort(() => srand() - .5);
     for (let i = 0; i < P.sleepy && i < pool.length; i++) pool[i].sleepy = true;
     best.cats.forEach(k => { const q = srand(); k.acc = q < .14 ? 'bubble' : q < .22 ? 'towel' : q < .27 ? 'duck' : null; });
     return { P, ...best };
   }
 
   // ================= STAGE =================
-  function loadStage(n, pic) {
-    const g = generate(n);
+  function loadStage(n, pic, opt) {
+    opt = opt || {}; const g = generate(n, opt.seed);
     const grid = Array.from({ length: g.P.rows }, () => Array(g.P.cols).fill(null));
     const cats = g.cats.map(k => ({ ...k, st: 'sit', x: k.c * CELL + CELL / 2, y: k.r * CELL + CELL / 2, t: 0, blinkT: rand(.5, 5), wob: 0, dizzy: 0, enter: rand(0, .35) }));
     cats.forEach(k => grid[k.r][k.c] = k.id);
-    Object.assign(S, { stage: n, cols: g.P.cols, rows: g.P.rows, grid, obs: g.obs, cats, hearts: 3, maxHearts: 3, total: cats.length, out: 0, state: 'play', kind: g.P.kind, hearts: (g.P.kind === 'hard' || g.P.kind === 'super') ? 2 : 3, maxHearts: (g.P.kind === 'hard' || g.P.kind === 'super') ? 2 : 3,
+    Object.assign(S, { stage: n, cols: g.P.cols, rows: g.P.rows, grid, obs: g.obs, cats, hearts: 3, maxHearts: 3, total: cats.length, out: 0, state: 'play', kind: g.P.kind, hearts: 3, maxHearts: 3,
       fx: [], prints: [], ripples: [], bubbles: [], words: [], confetti: [], hint: null, finger: null, info: { ...g.P, measured: g.m }, tutorial: false,
       combo: 0, comboT: 0, bestCombo: 0, gauge: 0, fever: 0, score: 0, shake: 0, chatT: 1.5, shield: 0, revealAll: 0, bumps: 0, reward: TIER_REWARD[g.P.kind], rescued: Array(CatArt.CATS.length).fill(0),
       nextNum: 1, orderCount: g.orderCount || 0, timeMax: 0, timeLeft: 0, mistakes: 0, timeAdds: 0, chain: 0, chainT: 0 });
     // butler timer: from level 8, based on solution length; harder tiers = tighter
-    if (n >= 8) { const tf = { normal: 1.35, rest: 1.7, hard: 1.12, super: 1.0 }[g.P.kind]; S.timeMax = Math.round(Math.max(22, cats.length * tf + (g.orderCount || 0) * 1.5 + 6)); S.timeLeft = S.timeMax; }
+    S.timeMax = 0; S.timeLeft = 0;
     if (Game.outfitOf) cats.forEach(k => { const o = Game.outfitOf(k.lvl % CatArt.CATS.length); if (o) k.acc = o; });
     timers.length = 0; S.usedBooster = false;
     S.rev = Array.from({ length: g.P.rows }, () => Array(g.P.cols).fill(0));
     S.pick = Array.from({ length: g.P.rows }, () => Array(g.P.cols).fill(0));
-    seed = n * 977 + 3; const empty = [];
+    seed = (opt.seed || n) * 977 + 3; const empty = [];
     for (let r = 0; r < g.P.rows; r++) for (let c = 0; c < g.P.cols; c++) if (grid[r][c] == null && !g.obs[r][c]) empty.push([c, r]);
     empty.sort(() => srand() - .5).slice(0, Math.min(empty.length, g.P.pickups)).forEach(([c, r], i) => S.pick[r][c] = i % 3 === 2 ? 2 : 1);
     if (pic) S.pic = pic;
+    S.challenge = !!opt.challenge; if (opt.after) opt.after(S, g);
+    if (Game.outfitOf) S.cats.forEach(k => { const o = Game.outfitOf(k.lvl % CatArt.CATS.length); if (o) k.acc = o; });
     tileCache = null; resize(); emit('hud'); emit('stage', S.info);
   }
   const cellXY = (c, r) => ({ x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 });
@@ -214,7 +242,7 @@
     if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) { S.combo = 0; emit('hud'); } }
     if (S.fever > 0) { S.fever -= dt; S.gauge = Math.max(0, S.fever / 4.5); if (S.fever <= 0) { S.gauge = 0; emit('fever', false); } emit('gauge'); }
     if (S.shake > 0) S.shake -= dt;
-    if (S.state === 'play' && !S.tutorial) { S.chatT -= dt; if (S.chatT <= 0) { S.chatT = rand(2.2, 4); const sit = S.cats.filter(k => k.st === 'sit' && !S.bubbles.some(b => b.cat === k.id)); if (sit.length) { const k = sit[Math.floor(Math.random() * sit.length)]; k.sleepy ? say(k, 'zZz…', 'sleepy', 1.6) : say(k, 'chat', 'think', 1.6); } } }
+    if (S.state === 'play' && !S.tutorial && !Game.calm) { S.chatT -= dt; if (S.chatT <= 0) { S.chatT = rand(2.2, 4); const sit = S.cats.filter(k => k.st === 'sit' && !S.bubbles.some(b => b.cat === k.id)); if (sit.length) { const k = sit[Math.floor(Math.random() * sit.length)]; k.sleepy ? say(k, 'zZz…', 'sleepy', 1.6) : say(k, 'chat', 'think', 1.6); } } }
     for (const b of S.bubbles) b.life -= dt; S.bubbles = S.bubbles.filter(b => b.life > 0);
     for (const w of S.words) { w.life -= dt; w.y -= 22 * dt; } S.words = S.words.filter(w => w.life > 0);
     for (const c of S.confetti) { c.life -= dt; c.x += c.vx * dt + Math.sin(S.time * 4 + c.r) * 20 * dt; c.y += c.vy * dt; c.r += c.vr * dt; } S.confetti = S.confetti.filter(c => c.life > 0);
@@ -368,7 +396,7 @@
   function render() {
     if (!S.obs.length) return; if (!bg) buildBg();
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bg, 0, 0);
-    const k = scale * dpr, shx = S.shake > 0 ? rand(-1, 1) * S.shake * 22 : 0, shy = S.shake > 0 ? rand(-1, 1) * S.shake * 22 : 0;
+    const k = scale * dpr; if (Game.calm) S.shake = 0; const shx = S.shake > 0 ? rand(-1, 1) * S.shake * 22 : 0, shy = S.shake > 0 ? rand(-1, 1) * S.shake * 22 : 0;
     ctx.setTransform(k, 0, 0, k, (offX + shx) * dpr, (offY + shy) * dpr);
     drawBoard();
     if (S.fever > 0) { ctx.save(); ctx.globalAlpha = .16 + .08 * Math.sin(S.time * 8); const fg = ctx.createRadialGradient(S.cols * CELL / 2, S.rows * CELL / 2, 20, S.cols * CELL / 2, S.rows * CELL / 2, S.rows * CELL); fg.addColorStop(0, '#FFF3A0'); fg.addColorStop(1, '#FF9CB5'); ctx.fillStyle = fg; ctx.fillRect(-MARGIN, -MARGIN, S.cols * CELL + MARGIN * 2, S.rows * CELL + MARGIN * 2); ctx.restore(); }
@@ -408,7 +436,13 @@
       ctx.font = '900 40px "Noto Sans CJK KR",sans-serif'; ctx.lineWidth = 10; ctx.strokeStyle = '#FF9CB5'; ctx.strokeText('츄르 타임!', 0, -8); ctx.fillStyle = '#FFFFFF'; ctx.fillText('츄르 타임!', 0, -8);
       ctx.font = '900 13px "Noto Sans CJK KR",sans-serif'; ctx.fillStyle = '#E3728F'; ctx.fillText('부딪혀도 하트 무사 · 점수 2배', 0, 30); ctx.restore(); }
   }
-  canvas.addEventListener('pointerdown', e => { const x = (e.clientX - offX) / scale, y = (e.clientY - offY) / scale; tapCell(Math.floor(x / CELL), Math.floor(y / CELL)); });
+  canvas.addEventListener('pointerdown', e => {
+    const x = (e.clientX - offX) / scale, y = (e.clientY - offY) / scale; let c = Math.floor(x / CELL), r = Math.floor(y / CELL);
+    const occ = (c, r) => c >= 0 && r >= 0 && c < S.cols && r < S.rows && S.grid[r] && S.grid[r][c] != null && S.cats[S.grid[r][c]].st === 'sit';
+    if (!occ(c, r)) { let best = null, bd = (Game.calm ? .95 : .75) * CELL;
+      for (const k of S.cats) { if (k.st !== 'sit') continue; const d = Math.hypot(k.c * CELL + CELL / 2 - x, k.r * CELL + CELL / 2 - y); if (d < bd) { bd = d; best = k; } }
+      if (best) { c = best.c; r = best.r; } }
+    tapCell(c, r); });
   let manual = false, paused = false, last = performance.now();
   (function loop(n) { const dt = Math.min(1 / 30, (n - last) / 1000); last = n; if (!manual && !paused) { update(dt); render(); } requestAnimationFrame(loop); })(last);
   addEventListener('resize', resize); resize();
