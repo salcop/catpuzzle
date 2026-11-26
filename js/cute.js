@@ -60,7 +60,7 @@
       bub.classList.remove('hidden', 'pop'); void bub.offsetWidth; bub.classList.add('pop');
       clearTimeout(bub._t); bub._t = setTimeout(() => bub.classList.add('hidden'), 1300);
       sprinkle(e.clientX, e.clientY - 10, 5, ['heart', 'heart', 'paw'], 40);
-      if (P) { P.sfx(line.includes('골골') ? 'purr' : pick(['tap_go', 'follow', 'exit']), .95 + Math.random() * .3, .75); P.vibrate(10); }
+      if (P) { P.sfx(line.includes('골골') ? 'purr' : 'meow_pet', .95 + Math.random() * .2, .8); P.vibrate(10); }
     });
   }
   // 5) 좋은 일 축하 (캣타워 구매·보상 수령 등): 모달 카드에서 터지는 DOM 꽃가루

@@ -1,7 +1,7 @@
 /* 냥이 대탈출 - app flow / screens */
 (function () {
   'use strict';
-  const VERSION = '1.4.0';
+  const VERSION = '2.0.0';
   // TODO(출시 전): 개인정보처리방침을 GitHub Pages 등에 올리고 주소 교체
   const PRIVACY_URL = 'https://YOUR-ID.github.io/nyang-escape/privacy.html';
   const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s), S = Game.S, P = Platform, D = P.D;
@@ -86,7 +86,7 @@
   $$('.item').forEach(b => b.onclick = () => {
     if (S.state !== 'play') return; const k = b.dataset.b; click();
     if (S.stage < BOOSTER_UNLOCK) { toast(`부스터는 레벨 ${BOOSTER_UNLOCK}부터 쓸 수 있어요`); return; }
-    const use = () => k === 'hint' ? Game.useHint() : k === 'shield' ? Game.useShield() : k === 'time' ? Game.addTime(15) : Game.liftBest();
+    S.usedBooster = true; const use = () => k === 'hint' ? Game.useHint() : k === 'shield' ? Game.useShield() : k === 'time' ? Game.addTime(15) : Game.liftBest();
     if (k === 'time' && !S.timeMax) { toast('타이머가 있는 레벨(8~)에서 쓸 수 있어요'); return; }
     if (k === 'time' && D.tAdd > 0) { if (use()) { D.tAdd--; P.save(); } boosterUI(); return; }
     if (D.b[k] > 0) { if (use()) { D.b[k]--; P.save(); P.log('booster', k); } }
@@ -174,7 +174,7 @@
     const firstClear = n > D.cleared; D.cleared = Math.max(D.cleared, n); if (firstClear) D.level = n + 1; D.streak++; const gift = D.streak % 5 === 0;
     // ★ rating: clear / no mistakes / time margin (>=40%) or (no timer) used no booster/continue
     const starTime = S.timeMax ? S.timeLeft / S.timeMax >= .4 : (S.mistakes === 0 && contN === 0);
-    const stars = 1 + (S.mistakes === 0 ? 1 : 0) + (starTime && contN === 0 ? 1 : 0);
+    const stars = 1 + (S.mistakes === 0 ? 1 : 0) + (starTime && contN === 0 ? 1 : 0); window.App && (App.lastStars = stars);
     const prev = D.stars[n] || 0, gained = Math.max(0, stars - prev); D.stars[n] = Math.max(prev, stars);
     const reward = Math.round((firstClear ? STAR_FISH[S.kind][stars] : Math.max(0, STAR_FISH[S.kind][stars] - STAR_FISH[S.kind][prev])) + perk('base'));
     D.totals.cats += S.total; if (stars === 3) D.totals.perfect++; if (S.kind === 'hard' || S.kind === 'super') D.totals.hard++; D.totals.combo = Math.max(D.totals.combo, S.bestCombo);
@@ -199,7 +199,7 @@
         <div class="reward" style="font-size:16px">${FISH} +${reward}</div><div style="font-size:11px;color:#A27786;font-weight:900">${firstClear ? '별 ' + stars + '개 보상' : prev >= stars ? '이미 받은 별' : '새 별 보상'}${perk('base') ? ' · 캣타워 +' + perk('base') : ''}</div></div></div>
       <div style="font-size:12.5px;font-weight:900;color:#A27786">최대 냥콤보 x${S.bestCombo} · 연승 ${D.streak}${gift ? ' · <span style="color:#FF7F95">방석 선물!</span>' : ''} · ${titleOf(totalStars())}</div>
       ${reward > 0 ? `<button class="btn yellow" id="dbl"><span class="ad">AD</span>생선 2배 (+${reward})</button>` : `<button class="btn yellow" id="dbl" style="display:none"></button>`}<button class="btn pink" id="nxt">${chapterDone ? '그림 완성 보러가기' : '다음 레벨'}</button>`);
-    [1, 2, 3].forEach(i => { if (i <= stars) setTimeout(() => { P.sfx('star', 1 + i * .12); P.vibrate(15); }, 250 + i * 280); }); setTimeout(() => P.sfx('thanks', Game.VOICE[rep]), 1300); if (stars === 3) setTimeout(() => { P.sfx('fever'); Game.burstConfetti(50); }, 1150);
+    [1, 2, 3].forEach(i => { if (i <= stars) setTimeout(() => { P.sfx('star', 1 + i * .12); P.vibrate(15); }, 250 + i * 280); }); setTimeout(() => P.sfx('thanks', Game.VOICE[rep]), 1300); if (stars === 3) setTimeout(() => { P.sfx('perfect'); Game.burstConfetti(60); }, 1150);
     $('#dbl').onclick = () => { click(); P.rewarded('double', ok => { if (ok) { D.coins += reward; P.save(); coinsUI(); P.sfx('coin'); $('#dbl').disabled = true; } }); };
     $('#nxt').onclick = async () => {
       click(); closeModal(); await showLevelUps(); await showTitle();

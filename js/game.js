@@ -101,7 +101,7 @@
     // butler timer: from level 8, based on solution length; harder tiers = tighter
     if (n >= 8) { const tf = { normal: 1.35, rest: 1.7, hard: 1.12, super: 1.0 }[g.P.kind]; S.timeMax = Math.round(Math.max(22, cats.length * tf + (g.orderCount || 0) * 1.5 + 6)); S.timeLeft = S.timeMax; }
     if (Game.outfitOf) cats.forEach(k => { const o = Game.outfitOf(k.lvl % CatArt.CATS.length); if (o) k.acc = o; });
-    timers.length = 0;
+    timers.length = 0; S.usedBooster = false;
     S.rev = Array.from({ length: g.P.rows }, () => Array(g.P.cols).fill(0));
     S.pick = Array.from({ length: g.P.rows }, () => Array(g.P.cols).fill(0));
     seed = n * 977 + 3; const empty = [];
@@ -269,7 +269,7 @@
   const rr = (x, X, Y, w, h, r) => { x.beginPath(); x.roundRect(X, Y, w, h, r); };
   function buildBg() {
     const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height; const x = c.getContext('2d'); x.scale(dpr, dpr);
-    const t = BGT[S.kind] || BGT.normal; let g = x.createLinearGradient(0, 0, 0, ch); g.addColorStop(0, t[0]); g.addColorStop(.55, t[1]); g.addColorStop(1, t[2]); x.fillStyle = g; x.fillRect(0, 0, cw, ch);
+    const th = window.Game && Game.theme ? Game.theme() : null; const t = (th && (S.kind === 'normal' || S.kind === 'rest')) ? th.bg : (BGT[S.kind] || BGT.normal); let g = x.createLinearGradient(0, 0, 0, ch); g.addColorStop(0, t[0]); g.addColorStop(.55, t[1]); g.addColorStop(1, t[2]); x.fillStyle = g; x.fillRect(0, 0, cw, ch);
     x.fillStyle = S.kind === 'hard' ? 'rgba(190,160,240,.25)' : S.kind === 'super' ? 'rgba(255,140,160,.25)' : 'rgba(255,190,205,.28)';
     for (let yy = 20, row = 0; yy < ch; yy += 46, row++) for (let xx = (row % 2) * 23 + 10; xx < cw; xx += 46) { x.beginPath(); x.ellipse(xx, yy + 2, 4.4, 3.8, 0, 0, 7); x.fill(); for (const [dx, dy] of [[-4, -4], [0, -6], [4, -4]]) { x.beginPath(); x.arc(xx + dx, yy + dy, 1.7, 0, 7); x.fill(); } }
     for (const [bx, by, br, col] of [[cw * .1, ch * .2, 90, 'rgba(255,214,226,.4)'], [cw * .92, ch * .55, 110, 'rgba(201,233,246,.4)'], [cw * .2, ch * .9, 120, 'rgba(255,236,190,.4)']]) { x.fillStyle = col; x.beginPath(); x.arc(bx, by, br, 0, 7); x.fill(); }
@@ -290,7 +290,7 @@
   }
   const TINT = { normal: ['#F1FBFE', '#E4F6FB', '#D6F0F8', '#CFEFF7'], rest: ['#F1FCF6', '#E3F7EC', '#D3F0E0', '#C8EBD7'], hard: ['#F6F1FE', '#ECE3FB', '#DED2F6', '#D6C8F2'], super: ['#FFF1F3', '#FDE2E7', '#F9CFD8', '#F6C5CF'] };
   function tiles() {
-    if (tileCache) return tileCache; const t = TINT[S.kind] || TINT.normal;
+    if (tileCache) return tileCache; const th = window.Game && Game.theme ? Game.theme() : null; const t = (th && (S.kind === 'normal' || S.kind === 'rest')) ? th.tile : (TINT[S.kind] || TINT.normal);
     tileCache = [0, 1].map(a => { const c = document.createElement('canvas'); const px = Math.ceil(CELL * scale * dpr); c.width = c.height = px; const x = c.getContext('2d'); x.scale(px / CELL, px / CELL);
       x.fillStyle = t[3]; x.fillRect(0, 0, CELL, CELL);
       const g = x.createLinearGradient(0, 0, 0, CELL); g.addColorStop(0, a ? t[0] : t[1]); g.addColorStop(1, a ? t[1] : t[2]); x.fillStyle = g; x.beginPath(); x.roundRect(2.5, 2.5, CELL - 5, CELL - 5, 12); x.fill();

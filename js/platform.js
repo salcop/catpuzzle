@@ -12,18 +12,39 @@
     D.coins = Math.min(D.coins, 800); D.streak = Math.min(D.streak, 2); D.bond = D.bond.map(v => Math.round(v * .45)); D.ver = 3; }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { } };
 
-  const NAMES = ['tap_go', 'exit', 'bump', 'grumble', 'steps', 'hint', 'lift', 'clear', 'star', 'fail', 'click', 'heart', 'purr', 'coin', 'follow', 'combo', 'nom', 'fever', 'pop', 'confetti', 'warn', 'page', 'piece', 'chapter', 'thanks', 'levelup', 'gift', 'note', 'tok', 'tick', 'chest', 'build'];
-  const AC = window.AudioContext || window.webkitAudioContext; let ac = null, master, sfxG, bgmG, BUF = {}, cur = null, curName = null, wanted = null;
+  const NAMES = ['tap_go', 'exit', 'bump', 'grumble', 'steps', 'hint', 'lift', 'clear', 'star', 'fail', 'click', 'heart', 'purr', 'coin', 'follow', 'combo', 'nom', 'fever', 'pop', 'confetti', 'warn', 'page', 'piece', 'chapter', 'thanks', 'levelup', 'gift', 'note', 'tok', 'tick', 'chest', 'build',
+    'coin_big', 'buy', 'equip', 'unlock', 'whoosh', 'perfect', 'sparkle', 'lvl_tap', 'meow_pet', 'bubble'];
+  // variations: name -> count (game picks one at random, never the same twice in a row)
+  const VARS = { tap_go: 4, exit: 4, follow: 3, bump: 3, grumble: 3, nom: 2, lift: 2, combo: 3, thanks: 3, meow_pet: 4, star: 3, bubble: 3 };
+  const AC = window.AudioContext || window.webkitAudioContext; let ac = null, master, comp, sfxG, voxG, bgmG, BUF = {}, cur = null, curName = null, wanted = null;
   function initAudio() {
-    if (ac || !AC) return; ac = new AC(); master = ac.createGain(); master.connect(ac.destination);
-    sfxG = ac.createGain(); sfxG.connect(master); bgmG = ac.createGain(); bgmG.gain.value = .42; bgmG.connect(master);
+    if (ac || !AC) return; ac = new AC();
+    comp = ac.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 3.5; comp.attack.value = .004; comp.release.value = .18;
+    master = ac.createGain(); master.gain.value = .95; comp.connect(master); master.connect(ac.destination);
+    sfxG = ac.createGain(); sfxG.connect(comp); voxG = ac.createGain(); voxG.gain.value = 1.05; voxG.connect(comp);
+    bgmG = ac.createGain(); bgmG.gain.value = .38; bgmG.connect(comp);
     const load = n => fetch('audio/' + n + '.ogg').then(r => r.arrayBuffer()).then(a => new Promise((res, rej) => ac.decodeAudioData(a, res, rej))).then(b => { BUF[n] = b; if (n === wanted) music(wanted, true); }).catch(() => { });
     NAMES.concat(['bgm', 'bgm_home']).forEach(load);
+    Object.entries(VARS).forEach(([n, k]) => { for (let i = 1; i <= k; i++) load(n + '_' + i); });
   }
-  const lastPlay = {}, VOICES = ['tap_go', 'exit', 'follow', 'bump', 'grumble', 'nom', 'lift', 'combo', 'thanks']; let voiceN = 0;
+  const lastPlay = {}, lastVar = {}, VOICES = ['tap_go', 'exit', 'follow', 'bump', 'grumble', 'nom', 'lift', 'combo', 'thanks', 'meow_pet']; let voiceN = 0;
+  function duck() { if (!bgmG) return; const t = ac.currentTime; bgmG.gain.cancelScheduledValues(t); bgmG.gain.setTargetAtTime(.22, t, .03); bgmG.gain.setTargetAtTime(.38, t + .35, .25); }
   function sfx(n, rate, vol) {
-    const now = performance.now(); if (lastPlay[n] && now - lastPlay[n] < (n === 'note' ? 55 : 80)) return; lastPlay[n] = now;
-    if (VOICES.includes(n)) { if (voiceN >= 2) return; voiceN++; setTimeout(() => voiceN--, 350); } if (window.__sfxlog) window.__sfxlog.push([n, rate || 1, vol == null ? 1 : vol, window.Game ? Game.S.time : 0]); if (!ac || !D.sfx || !BUF[n]) return; const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = BUF[n]; s.playbackRate.value = rate || 1; g.gain.value = vol == null ? 1 : vol; s.connect(g).connect(sfxG); s.start(); }
+    const now = performance.now(); if (lastPlay[n] && now - lastPlay[n] < (n === 'note' ? 55 : n === 'tick' ? 30 : 80)) return; lastPlay[n] = now;
+    const isVox = VOICES.includes(n);
+    if (isVox) { if (voiceN >= 2) return; voiceN++; setTimeout(() => voiceN--, 380); }
+    if (window.__sfxlog) window.__sfxlog.push([n, rate || 1, vol == null ? 1 : vol, window.Game ? Game.S.time : 0]);
+    if (!ac || !D.sfx) return;
+    let key = n;
+    if (VARS[n]) { let i; do { i = 1 + Math.floor(Math.random() * VARS[n]); } while (VARS[n] > 1 && i === lastVar[n]); lastVar[n] = i; if (BUF[n + '_' + i]) key = n + '_' + i; }
+    if (!BUF[key]) return;
+    const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = BUF[key];
+    s.playbackRate.value = (rate || 1) * (isVox ? 1 : 1 + (Math.random() - .5) * .03); g.gain.value = vol == null ? 1 : vol;
+    let node = s.connect(g);
+    if (ac.createStereoPanner && isVox) { const p = ac.createStereoPanner(); p.pan.value = (Math.random() - .5) * .35; node = g.connect(p); node.connect(voxG); duck(); }
+    else g.connect(isVox ? voxG : sfxG);
+    s.start();
+  }
   function music(name, force) {
     wanted = name; if (!ac || (!force && curName === name)) return;
     if (cur) { const old = cur; old._g.gain.setTargetAtTime(0, ac.currentTime, .3); setTimeout(() => { try { old.stop(); } catch (e) { } }, 1200); cur = null; curName = null; }
